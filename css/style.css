@@ -1,0 +1,501 @@
+/* ==========================================================================
+   Design System & Variable Declarations (Light Theme Default)
+   ========================================================================== */
+:root {
+    --bg-page: #f8f9fa;
+    --bg-card: #ffffff;
+    --bg-navbar: #ffffff;
+    --bg-light: #f8f9fa;
+    --bg-dark-subtle: #212529;
+    
+    --text-main: #212529;
+    --text-muted: #6c757d;
+    --text-heading: #1a1d20;
+    
+    --border-color: #e9ecef;
+    --border-color-input: #ced4da;
+    
+    --primary-color: #0d6efd;
+    --primary-hover: #0b5ed7;
+    --primary-light: #e7f1ff;
+    
+    --shadow-card: 0 4px 12px rgba(0, 0, 0, 0.04);
+    --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.08);
+    --shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.04);
+    
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    
+    --transition-speed: 0.25s;
+    
+    --card-border-radius: 12px;
+}
+
+/* ==========================================================================
+   Dark Theme Overrides
+   ========================================================================== */
+[data-theme="dark"] {
+    --bg-page: #121214;
+    --bg-card: #1a1a1e;
+    --bg-navbar: #1a1a1e;
+    --bg-light: #242429;
+    --bg-dark-subtle: #121214;
+    
+    --text-main: #e2e8f0;
+    --text-muted: #94a3b8;
+    --text-heading: #ffffff;
+    
+    --border-color: #2d2d34;
+    --border-color-input: #40404b;
+    
+    --primary-color: #3b82f6;
+    --primary-hover: #2563eb;
+    --primary-light: rgba(59, 130, 246, 0.15);
+    
+    --shadow-card: 0 4px 16px rgba(0, 0, 0, 0.2);
+    --shadow-hover: 0 8px 32px rgba(0, 0, 0, 0.3);
+    --shadow-inset: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ==========================================================================
+   Core Layout & Typographical Overrides
+   ========================================================================== */
+body {
+    font-family: var(--font-sans);
+    background-color: var(--bg-page);
+    color: var(--text-main);
+    transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+    overflow-x: hidden;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: var(--text-heading);
+    font-weight: 600;
+}
+
+.text-muted {
+    color: var(--text-muted) !important;
+}
+
+.bg-white {
+    background-color: var(--bg-card) !important;
+}
+
+.bg-light {
+    background-color: var(--bg-light) !important;
+}
+
+.border-bottom {
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.border {
+    border: 1px solid var(--border-color) !important;
+}
+
+/* ==========================================================================
+   Navbar Component
+   ========================================================================== */
+.navbar {
+    background-color: var(--bg-navbar) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    transition: background-color var(--transition-speed) ease;
+}
+
+/* ==========================================================================
+   Buttons and Icon Styling
+   ========================================================================== */
+.btn-icon {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50% !important;
+    transition: background-color var(--transition-speed) ease, color var(--transition-speed) ease;
+}
+
+.btn-primary {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.btn-primary:hover, .btn-primary:focus {
+    background-color: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.btn-outline-primary.border-dashed {
+    border-style: dashed !important;
+    border-width: 2px;
+}
+
+.btn-outline-primary.border-dashed:hover {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+}
+
+/* ==========================================================================
+   Cards Structure & Shadows
+   ========================================================================== */
+.card {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+    box-shadow: var(--shadow-card);
+    transition: background-color var(--transition-speed) ease, 
+                border-color var(--transition-speed) ease, 
+                box-shadow var(--transition-speed) ease;
+}
+
+.rounded-3 {
+    border-radius: var(--card-border-radius) !important;
+}
+
+/* ==========================================================================
+   1. Drag & Drop Upload Zone
+   ========================================================================== */
+.upload-dropzone {
+    border-color: var(--border-color-input) !important;
+    background-color: var(--bg-light);
+    cursor: pointer;
+    transition: all var(--transition-speed) ease;
+}
+
+.upload-dropzone:hover, .upload-dropzone.dragover {
+    border-color: var(--primary-color) !important;
+    background-color: var(--primary-light);
+    box-shadow: var(--shadow-inset);
+}
+
+.upload-dropzone.dragover .upload-icon-wrapper {
+    transform: translateY(-5px);
+}
+
+.upload-icon-wrapper {
+    transition: transform var(--transition-speed) ease;
+}
+
+.cursor-pointer {
+    cursor: pointer;
+}
+
+/* ==========================================================================
+   2. HTML Structure Builder Blocks
+   ========================================================================== */
+.structure-block {
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-card);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+}
+
+.structure-block:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
+}
+
+.structure-block-header {
+    background-color: var(--bg-light);
+    padding: 10px 16px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border-color);
+    transition: background-color var(--transition-speed) ease, border-color var(--transition-speed) ease;
+}
+
+.structure-block.collapsed .structure-block-header {
+    border-bottom-color: transparent;
+}
+
+.structure-block-body {
+    padding: 16px;
+    border-top: 0;
+}
+
+.block-drag-handle {
+    cursor: grab;
+    color: var(--text-muted);
+}
+
+.block-drag-handle:active {
+    cursor: grabbing;
+}
+
+.structure-block textarea {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 14px;
+    resize: vertical;
+    border-color: var(--border-color-input);
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    transition: background-color var(--transition-speed) ease, 
+                color var(--transition-speed) ease, 
+                border-color var(--transition-speed) ease;
+}
+
+.structure-block textarea:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem var(--primary-light);
+    background-color: var(--bg-card);
+    color: var(--text-main);
+}
+
+.form-select, .form-control {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--border-color-input);
+    transition: background-color var(--transition-speed) ease, 
+                color var(--transition-speed) ease, 
+                border-color var(--transition-speed) ease;
+}
+
+.form-select:focus, .form-control:focus {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.25rem var(--primary-light);
+}
+
+/* ==========================================================================
+   Right Panel Tabs
+   ========================================================================== */
+.nav-tabs .nav-link {
+    color: var(--text-muted);
+    border: none;
+    background: none;
+}
+
+.nav-tabs .nav-link:hover {
+    color: var(--text-main);
+    border: none;
+}
+
+.nav-tabs .nav-link.active {
+    color: var(--primary-color) !important;
+    background: none;
+    border: none;
+}
+
+.nav-tabs .nav-link.active::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: var(--primary-color);
+    border-top-left-radius: 3px;
+    border-top-right-radius: 3px;
+}
+
+.tab-content {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+}
+
+.tab-pane {
+    display: none;
+    transition: opacity 0.15s linear;
+}
+
+.tab-pane.active {
+    display: flex !important;
+    flex-direction: column;
+    flex-grow: 1;
+    height: 100%;
+    min-height: 0;
+}
+
+/* ==========================================================================
+   Tab Content 1: Live Preview (Mock Browser Frame)
+   ========================================================================== */
+.mock-browser {
+    border-color: var(--border-color) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    height: 100%;
+    min-height: 0;
+}
+
+.mock-browser-bar {
+    border-color: var(--border-color) !important;
+    background-color: var(--bg-card) !important;
+}
+
+.mock-browser-bar .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.mock-browser-address-bar {
+    max-width: 450px;
+    border: 1px solid var(--border-color);
+    color: var(--text-muted) !important;
+}
+
+.mock-browser-content {
+    flex-grow: 1;
+    height: 0;
+    min-height: 0;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==========================================================================
+   Tab Content 2: Generated HTML (Code Editor View)
+   ========================================================================== */
+.code-view-container {
+    border-color: var(--border-color) !important;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    height: 100%;
+    min-height: 0;
+}
+
+.code-view-header {
+    background-color: #1a1a1e !important;
+    border-color: #2d2d34 !important;
+}
+
+.code-view-body {
+    background-color: #1e1e24;
+    flex-grow: 1;
+    height: 0;
+    min-height: 0;
+    overflow: auto;
+}
+
+/* Override Prism.js Tomorrow Theme styles to fit our layout container */
+pre[class*="language-"] {
+    background: #1e1e24 !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    font-size: 14px;
+    line-height: 1.5;
+    height: 100%;
+}
+
+/* ==========================================================================
+   Tab Content 3: Conversion Logs Terminal style
+   ========================================================================== */
+.logs-console {
+    background-color: #121214 !important;
+    border-color: var(--border-color) !important;
+    box-shadow: inset 0 2px 8px rgba(0,0,0,0.2);
+    display: flex;
+    flex-direction: column;
+    flex-grow: 1;
+    height: 100%;
+    min-height: 0;
+}
+
+.logs-console-header {
+    background-color: #1a1a1e !important;
+    border-color: #2c2c35 !important;
+    color: #94a3b8 !important;
+}
+
+.logs-console-body {
+    background-color: #121214;
+    font-size: 13px;
+    line-height: 1.6;
+    flex-grow: 1;
+    height: 0;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.log-entry {
+    margin-bottom: 6px;
+    border-left: 2px solid transparent;
+    padding-left: 8px;
+    transition: all var(--transition-speed) ease;
+}
+
+.log-entry.log-system {
+    border-left-color: #64748b;
+    color: #94a3b8;
+}
+
+.log-entry.log-success {
+    border-left-color: #22c55e;
+    color: #4ade80;
+}
+
+.log-entry.log-info {
+    border-left-color: #3b82f6;
+    color: #60a5fa;
+}
+
+.log-entry.log-warning {
+    border-left-color: #eab308;
+    color: #facc15;
+}
+
+/* ==========================================================================
+   Modals overrides
+   ========================================================================== */
+.modal-content {
+    background-color: var(--bg-card);
+    border: 1px solid var(--border-color);
+}
+
+.modal-header {
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+.modal-footer {
+    border-top: 1px solid var(--border-color) !important;
+}
+
+/* ==========================================================================
+   Custom Utility Styles
+   ========================================================================== */
+.max-w-300 {
+    max-width: 300px;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #cbd5e1;
+    border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #475569;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #94a3b8;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #64748b;
+}
+
+/* Blocks List Scroll Area style */
+.blocks-container::-webkit-scrollbar {
+    width: 6px;
+}
