@@ -108,16 +108,33 @@
             return wrapper.outerHTML;
         },
 
+        getHeadingConfig: function(level, cfg) {
+            const headings = (cfg && cfg.headings) ? cfg.headings : {};
+            const levelKey = level.toLowerCase();
+            const candidates = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'];
+
+            function validHeadingConfig(entry) {
+                return entry && entry.tag && entry.tag.trim();
+            }
+
+            if (validHeadingConfig(headings[levelKey])) {
+                return headings[levelKey];
+            }
+
+            for (let i = 0; i < candidates.length; i++) {
+                const candidate = candidates[i];
+                if (candidate === levelKey) continue;
+                if (validHeadingConfig(headings[candidate])) {
+                    return headings[candidate];
+                }
+            }
+
+            return { tag: level, class: '' };
+        },
+
         transformHeading: function(hEl, cfg) {
             const level = hEl.tagName.toLowerCase(); // 'h1'..'h6'
-            let hCfg = (cfg.headings && cfg.headings[level]) ? cfg.headings[level] : null;
-
-            // Fallback: If specific heading tag is empty, use Heading 1 setting, or level tag
-            if (!hCfg || !hCfg.tag || !hCfg.tag.trim()) {
-                hCfg = (cfg.headings && cfg.headings.h1 && cfg.headings.h1.tag && cfg.headings.h1.tag.trim())
-                    ? cfg.headings.h1
-                    : { tag: level, class: '' };
-            }
+            const hCfg = ConverterGenerator.getHeadingConfig(level, cfg);
 
             const outTag = hCfg.tag.trim();
             const newEl = document.createElement(outTag);
@@ -221,6 +238,17 @@
             if (tableRule.class && tableRule.class.trim()) newTable.className = tableRule.class.trim();
             if (tableRule.attrs && tableRule.attrs.trim()) ConverterGenerator.applyCustomAttributes(newTable, tableRule.attrs);
 
+            // Wrap table in optional parent wrapper when configured
+            let outputNode = newTable;
+            if (tCfg.wrapper && tCfg.wrapper.tag && tCfg.wrapper.tag.trim()) {
+                const wrapperTag = tCfg.wrapper.tag.trim();
+                const wrapper = document.createElement(wrapperTag);
+                if (tCfg.wrapper.class && tCfg.wrapper.class.trim()) wrapper.className = tCfg.wrapper.class.trim();
+                if (tCfg.wrapper.attrs && tCfg.wrapper.attrs.trim()) ConverterGenerator.applyCustomAttributes(wrapper, tCfg.wrapper.attrs);
+                wrapper.appendChild(newTable);
+                outputNode = wrapper;
+            }
+
             // Structure: thead, tbody, tfoot, tr, th, td
             ['thead', 'tbody', 'tfoot'].forEach(secName => {
                 const secEl = tableEl.querySelector(secName);
@@ -253,7 +281,7 @@
                 });
             }
 
-            return newTable;
+            return outputNode;
         },
 
         transformTableRow: function(trEl, tCfg) {

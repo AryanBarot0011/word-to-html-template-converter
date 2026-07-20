@@ -130,6 +130,12 @@ $(document).ready(function() {
                     }
                 }
             });
+
+            if (cfg.table && cfg.table.wrapper) {
+                $('#cfgTableWrapperTag').val(cfg.table.wrapper.tag || '');
+                $('#cfgTableWrapperClass').val(cfg.table.wrapper.class || '');
+                $('#cfgTableWrapperAttrs').val(cfg.table.wrapper.attrs || '');
+            }
         }
 
         // 6. Image
@@ -186,6 +192,11 @@ $(document).ready(function() {
 
         // 5. Tables
         cfg.table = {
+            wrapper: {
+                tag: $('#cfgTableWrapperTag').val().trim(),
+                class: $('#cfgTableWrapperClass').val().trim(),
+                attrs: $('#cfgTableWrapperAttrs').val().trim()
+            },
             table: { tag: $('#cfgTableTag').val().trim(), class: $('#cfgTableClass').val().trim(), attrs: $('#cfgTableAttrs').val().trim() },
             thead: { tag: $('#cfgTheadTag').val().trim(), class: $('#cfgTheadClass').val().trim(), attrs: $('#cfgTheadAttrs').val().trim() },
             tbody: { tag: $('#cfgTbodyTag').val().trim(), class: $('#cfgTbodyClass').val().trim(), attrs: $('#cfgTbodyAttrs').val().trim() },

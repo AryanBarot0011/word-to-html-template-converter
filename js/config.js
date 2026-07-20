@@ -30,6 +30,7 @@
             li: { tag: 'li', class: 'mt-3' }
         },
         table: {
+            wrapper: { tag: '', class: '', attrs: '' },
             table: { tag: 'table', class: 'table table-bordered', attrs: '' },
             thead: { tag: 'thead', class: '', attrs: '' },
             tbody: { tag: 'tbody', class: '', attrs: '' },
