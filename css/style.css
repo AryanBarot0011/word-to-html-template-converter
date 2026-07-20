@@ -57,6 +57,123 @@
 }
 
 /* ==========================================================================
+   Dark Theme Element Overrides
+   ========================================================================== */
+[data-theme="dark"] .text-dark,
+[data-theme="dark"] [class*="text-dark"] {
+    color: var(--text-heading) !important;
+}
+
+[data-theme="dark"] label,
+[data-theme="dark"] .form-check-label,
+[data-theme="dark"] .form-label {
+    color: var(--text-main) !important;
+}
+
+[data-theme="dark"] h1, 
+[data-theme="dark"] h2, 
+[data-theme="dark"] h3, 
+[data-theme="dark"] h4, 
+[data-theme="dark"] h5, 
+[data-theme="dark"] h6,
+[data-theme="dark"] .modal-title,
+[data-theme="dark"] .navbar-brand {
+    color: var(--text-heading) !important;
+}
+
+[data-theme="dark"] .file-item-card {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-heading) !important;
+}
+
+[data-theme="dark"] .file-item-card .text-body,
+[data-theme="dark"] .file-item-card .fw-semibold {
+    color: var(--text-heading) !important;
+}
+
+[data-theme="dark"] select,
+[data-theme="dark"] select option,
+[data-theme="dark"] #convertedFileSelect,
+[data-theme="dark"] #convertedFileSelect option {
+    background-color: var(--bg-card) !important;
+    color: var(--text-heading) !important;
+}
+
+
+
+[data-theme="dark"] .table-light,
+[data-theme="dark"] .table-light th,
+[data-theme="dark"] .table-light td {
+    background-color: var(--bg-light) !important;
+    color: var(--text-heading) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .table {
+    color: var(--text-main) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .table th,
+[data-theme="dark"] .table td {
+    border-color: var(--border-color) !important;
+    background-color: transparent !important;
+    color: var(--text-main) !important;
+}
+
+[data-theme="dark"] .btn-light {
+    background-color: var(--bg-light) !important;
+    color: var(--text-main) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .btn-light:hover {
+    background-color: var(--border-color) !important;
+    color: var(--text-heading) !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+    color: var(--text-main) !important;
+    border-color: var(--border-color-input) !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: var(--bg-light) !important;
+    color: var(--text-heading) !important;
+}
+
+[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+[data-theme="dark"] .accordion-button::after {
+    filter: invert(1);
+}
+
+[data-theme="dark"] .vr {
+    background-color: var(--border-color) !important;
+    opacity: 1;
+}
+
+[data-theme="dark"] .upload-dropzone {
+    background-color: var(--bg-card);
+    border-color: var(--border-color-input) !important;
+}
+
+[data-theme="dark"] .link-rule-card {
+    background-color: var(--bg-card);
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .mock-browser-address-bar {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border-color) !important;
+    color: var(--text-muted) !important;
+}
+
+
+/* ==========================================================================
    Core Layout & Typographical Overrides
    ========================================================================== */
 body {
@@ -499,3 +616,44 @@ pre[class*="language-"] {
 .blocks-container::-webkit-scrollbar {
     width: 6px;
 }
+
+/* ==========================================================================
+   Accordion & Link Manager Styles
+   ========================================================================== */
+.custom-accordion .accordion-button {
+    background-color: var(--bg-light);
+    color: var(--text-heading);
+    box-shadow: none !important;
+    border-radius: 6px !important;
+    font-size: 14px;
+    padding: 12px 16px;
+}
+
+.custom-accordion .accordion-button:not(.collapsed) {
+    background-color: var(--primary-light);
+    color: var(--primary-color);
+}
+
+.custom-accordion .accordion-body {
+    background-color: var(--bg-card);
+    color: var(--text-main);
+}
+
+.custom-accordion .accordion-item {
+    border-color: var(--border-color) !important;
+    background-color: var(--bg-card);
+    overflow: hidden;
+}
+
+.link-rule-card {
+    border: 1px solid var(--border-color);
+    background-color: var(--bg-light);
+    border-radius: 8px;
+    padding: 12px;
+    transition: border-color var(--transition-speed) ease;
+}
+
+.link-rule-card:hover {
+    border-color: var(--primary-color);
+}
+

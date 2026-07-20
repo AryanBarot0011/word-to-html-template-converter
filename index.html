@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Word to HTML Template Converter</title>
+    <title>Word to HTML Generator - Configuration Based</title>
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,19 +19,32 @@
     <!-- Navigation Bar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom py-3 sticky-top">
         <div class="container-fluid px-4">
-            <a class="navbar-brand d-flex align-items-center fw-semibold text-dark" href="#">
+            <a class="navbar-brand d-flex align-items-center fw-semibold text-body" href="#">
                 <i class="bi bi-file-earmark-code-fill text-primary me-2 fs-4"></i>
-                <span>Word to HTML Template Converter</span>
+                <span>Word to HTML Generator</span>
             </a>
-            <div class="ms-auto d-flex align-items-center gap-3">
+            <div class="ms-auto d-flex align-items-center gap-2">
+                <button class="btn btn-sm btn-outline-primary d-flex align-items-center gap-1" id="exportSettingsBtn" title="Export settings.json">
+                    <i class="bi bi-box-arrow-up"></i>
+                    <span class="d-none d-sm-inline">Export Settings</span>
+                </button>
+                <label class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1 mb-0 cursor-pointer" id="importSettingsLabel" title="Import settings.json">
+                    <i class="bi bi-box-arrow-in-down"></i>
+                    <span class="d-none d-sm-inline">Import Settings</span>
+                    <input type="file" id="importSettingsFile" accept=".json" class="d-none">
+                </label>
+                <button class="btn btn-sm btn-outline-danger d-flex align-items-center gap-1" id="resetSettingsBtn" title="Reset All Settings">
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    <span class="d-none d-sm-inline">Reset</span>
+                </button>
+
+                <div class="vr mx-1"></div>
+
                 <button class="btn btn-icon btn-light rounded-circle" id="themeToggle" title="Toggle Theme" aria-label="Toggle Theme">
                     <i class="bi bi-moon-fill"></i>
                 </button>
                 <button class="btn btn-icon btn-light rounded-circle" id="helpButton" title="Help / Guide" data-bs-toggle="modal" data-bs-target="#helpModal">
                     <i class="bi bi-question-circle"></i>
-                </button>
-                <button class="btn btn-icon btn-light rounded-circle" id="settingsButton" title="Global Settings" data-bs-toggle="modal" data-bs-target="#settingsModal">
-                    <i class="bi bi-gear"></i>
                 </button>
             </div>
         </div>
@@ -41,63 +54,415 @@
     <main class="container-fluid px-4 py-4">
         <div class="row g-4">
             
-            <!-- Left Column: Input Panel -->
-            <div class="col-xl-6 d-flex flex-column gap-4">
+            <!-- Left Column: Input & Configuration Panel -->
+            <div class="col-xl-6 d-flex flex-column gap-3" style="max-height: calc(100vh - 100px); overflow-y: auto;">
                 
                 <!-- Section 1: Upload Word Document -->
                 <div class="card border-0 shadow-sm rounded-3 bg-white">
                     <div class="card-body p-4">
-                        <h2 class="h5 fw-semibold text-dark mb-3">1. Upload Word Document</h2>
+                        <h2 class="h5 fw-semibold mb-3">1. Upload Word Document(s)</h2>
                         
-                        <div class="upload-dropzone text-center p-5 border border-2 border-dashed rounded-3 position-relative transition-all" id="dropzone">
-                            <input type="file" id="wordFileInput" accept=".docx" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" style="z-index: 5;">
-                            <div class="upload-icon-wrapper mb-3 text-primary">
-                                <i class="bi bi-cloud-arrow-up fs-1"></i>
+                        <div class="upload-dropzone text-center p-4 border border-2 border-dashed rounded-3 position-relative transition-all" id="dropzone">
+                            <input type="file" id="wordFileInput" accept=".docx" multiple class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" style="z-index: 5;">
+                            <div class="upload-icon-wrapper mb-2 text-primary">
+                                <i class="bi bi-cloud-arrow-up fs-2"></i>
                             </div>
-                            <h3 class="h6 fw-semibold text-dark mb-1">Drag & Drop Word File</h3>
-                            <p class="text-muted small mb-3">or click to browse your files (.docx only)</p>
+                            <h3 class="h6 fw-semibold mb-1">Drag & Drop Word File(s)</h3>
+                            <p class="text-muted small mb-2">or click to browse multiple files (.docx supported)</p>
                             <button type="button" class="btn btn-sm btn-primary px-3 pointer-events-none">Browse Files</button>
                         </div>
                         
                         <!-- Selected Filename Display -->
-                        <div class="mt-3 p-3 bg-light rounded-3 d-none align-items-center justify-content-between" id="fileInfoContainer">
-                            <div class="d-flex align-items-center overflow-hidden">
-                                <i class="bi bi-file-earmark-word-fill text-primary fs-4 me-2 flex-shrink-0"></i>
-                                <span class="fw-medium text-dark text-truncate" id="selectedFilename">filename.docx</span>
+                        <div class="mt-3 p-3 bg-light rounded-3 d-none flex-column gap-2" id="fileInfoContainer">
+                            <div class="d-flex align-items-center justify-content-between">
+                                <span class="fw-semibold small text-body" id="uploadedFilesSummary">Uploaded Files (0)</span>
+                                <button type="button" class="btn-close" id="clearFileButton" aria-label="Remove all files"></button>
                             </div>
-                            <button type="button" class="btn-close" id="clearFileButton" aria-label="Remove file"></button>
+                            <div id="fileBadgesContainer" class="d-flex flex-wrap gap-2">
+                                <!-- File badges inserted dynamically -->
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Section 2: HTML Structure Builder -->
-                <div class="card border-0 shadow-sm rounded-3 bg-white flex-grow-1 d-flex flex-column">
-                    <div class="card-body p-4 d-flex flex-column">
-                        <div class="d-flex justify-content-between align-items-center mb-3">
-                            <div>
-                                <h2 class="h5 fw-semibold text-dark mb-1">2. HTML Structure Builder</h2>
-                                <p class="text-muted small mb-0">Define templates for different contents. The converter auto-detects and wraps blocks.</p>
+                <!-- Section 2: Configuration Rules Accordion -->
+                <div class="card border-0 shadow-sm rounded-3 bg-white flex-grow-1">
+                    <div class="card-body p-4">
+                        <h2 class="h5 fw-semibold mb-3">2. HTML Generation Rules</h2>
+
+                        <div class="accordion custom-accordion" id="configAccordion">
+                            
+                            <!-- Rule 1: Output Structure / Parent Wrapper -->
+                            <div class="accordion-item border rounded-3 mb-2">
+                                <h2 class="accordion-header" id="headingParent">
+                                    <button class="accordion-button fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseParent" aria-expanded="true" aria-controls="collapseParent">
+                                        <i class="bi bi-box me-2 text-primary"></i> Parent Wrapper Mode & Structure
+                                    </button>
+                                </h2>
+                                <div id="collapseParent" class="accordion-collapse collapse show" aria-labelledby="headingParent" data-bs-parent="#configAccordion">
+                                    <div class="accordion-body">
+                                        <label class="form-label fw-medium mb-2">Parent Wrapper Mode</label>
+                                        <div class="d-flex gap-4 mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="wrapperMode" id="modeRepeat" value="repeat" checked>
+                                                <label class="form-check-label fw-medium" for="modeRepeat">
+                                                    Mode A: Repeat Parent (per section)
+                                                </label>
+                                            </div>
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="radio" name="wrapperMode" id="modeSingle" value="single">
+                                                <label class="form-check-label fw-medium" for="modeSingle">
+                                                    Mode B: Single Parent (entire document)
+                                                </label>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="row g-2">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small text-muted">Wrapper Tag</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgWrapperTag" value="div" placeholder="div, section, article...">
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small text-muted">Wrapper Class</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgWrapperClass" value="blog-info-details" placeholder="e.g. container content-box">
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small text-muted">Wrapper ID (optional)</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgWrapperId" placeholder="e.g. main-content">
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small text-muted">Wrapper Attributes (optional)</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgWrapperAttrs" placeholder="e.g. data-section='true'">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                            <span class="badge bg-light text-primary border border-primary-subtle px-2 py-1 rounded" id="blockCountBadge">4 Blocks</span>
-                        </div>
-                        
-                        <!-- Blocks List Container -->
-                        <div class="blocks-container flex-grow-1 overflow-y-auto mb-3 pe-1" id="blocksList" style="max-height: 480px;">
-                            <!-- Dynamic Blocks will be inserted here by JavaScript -->
-                        </div>
-                        
-                        <!-- Add Structure Button -->
-                        <button type="button" class="btn btn-outline-primary border-dashed w-100 py-3 d-flex align-items-center justify-content-center gap-2 rounded-3" id="addBlockButton">
-                            <i class="bi bi-plus-lg"></i>
-                            <span>Add HTML Structure</span>
-                        </button>
+
+                            <!-- Rule 2: Heading Configuration -->
+                            <div class="accordion-item border rounded-3 mb-2">
+                                <h2 class="accordion-header" id="headingHeadings">
+                                    <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseHeadings" aria-expanded="false" aria-controls="collapseHeadings">
+                                        <i class="bi bi-type-h1 me-2 text-primary"></i> Headings (H1 to H6)
+                                    </button>
+                                </h2>
+                                <div id="collapseHeadings" class="accordion-collapse collapse" aria-labelledby="headingHeadings" data-bs-parent="#configAccordion">
+                                    <div class="accordion-body p-3">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-borderless align-middle mb-0">
+                                                <thead>
+                                                    <tr class="text-muted small">
+                                                        <th style="width: 120px;">Word Heading</th>
+                                                        <th style="width: 120px;">Output Tag</th>
+                                                        <th>CSS Class(es)</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    <tr>
+                                                        <td class="fw-medium">Heading 1</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH1Tag" value="h1"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH1Class" value="heading"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-medium">Heading 2</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH2Tag" value="h2"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH2Class" value="heading"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-medium">Heading 3</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH3Tag" value="h3"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH3Class" value="heading"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-medium">Heading 4</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH4Tag" value="h4"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH4Class" value=""></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-medium">Heading 5</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH5Tag" value="h5"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH5Class" value=""></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-medium">Heading 6</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH6Tag" value="h6"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgH6Class" value=""></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rule 3: Paragraph Configuration -->
+                            <div class="accordion-item border rounded-3 mb-2">
+                                <h2 class="accordion-header" id="headingParagraph">
+                                    <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseParagraph" aria-expanded="false" aria-controls="collapseParagraph">
+                                        <i class="bi bi-paragraph me-2 text-primary"></i> Paragraphs
+                                    </button>
+                                </h2>
+                                <div id="collapseParagraph" class="accordion-collapse collapse" aria-labelledby="headingParagraph" data-bs-parent="#configAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row g-2">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small text-muted">Output Tag</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgParagraphTag" value="p">
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small text-muted">CSS Class(es)</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgParagraphClass" value="mb-3">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rule 4: Lists Configuration -->
+                            <div class="accordion-item border rounded-3 mb-2">
+                                <h2 class="accordion-header" id="headingLists">
+                                    <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLists" aria-expanded="false" aria-controls="collapseLists">
+                                        <i class="bi bi-list-task me-2 text-primary"></i> Lists (UL, OL, LI)
+                                    </button>
+                                </h2>
+                                <div id="collapseLists" class="accordion-collapse collapse" aria-labelledby="headingLists" data-bs-parent="#configAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <h6 class="small fw-bold border-bottom pb-1">Unordered List (UL)</h6>
+                                                <label class="form-label small text-muted mb-1">Tag</label>
+                                                <input type="text" class="form-control form-control-sm mb-2" id="cfgUlTag" value="ul">
+                                                <label class="form-label small text-muted mb-1">Class</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgUlClass" value="list-style">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6 class="small fw-bold border-bottom pb-1">Ordered List (OL)</h6>
+                                                <label class="form-label small text-muted mb-1">Tag</label>
+                                                <input type="text" class="form-control form-control-sm mb-2" id="cfgOlTag" value="ol">
+                                                <label class="form-label small text-muted mb-1">Class</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgOlClass" value="ordered-list">
+                                            </div>
+                                            <div class="col-md-4">
+                                                <h6 class="small fw-bold border-bottom pb-1">List Item (LI)</h6>
+                                                <label class="form-label small text-muted mb-1">Tag</label>
+                                                <input type="text" class="form-control form-control-sm mb-2" id="cfgLiTag" value="li">
+                                                <label class="form-label small text-muted mb-1">Class</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgLiClass" value="mt-3">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rule 5: Table Configuration -->
+                            <div class="accordion-item border rounded-3 mb-2">
+                                <h2 class="accordion-header" id="headingTables">
+                                    <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTables" aria-expanded="false" aria-controls="collapseTables">
+                                        <i class="bi bi-table me-2 text-primary"></i> Tables & Cell Inner Tags
+                                    </button>
+                                </h2>
+                                <div id="collapseTables" class="accordion-collapse collapse" aria-labelledby="headingTables" data-bs-parent="#configAccordion">
+                                    <div class="accordion-body p-3">
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered align-middle mb-0">
+                                                <thead class="table-light small">
+                                                    <tr>
+                                                        <th>Element</th>
+                                                        <th>Tag</th>
+                                                        <th>Class</th>
+                                                        <th>Attributes</th>
+                                                        <th>Inner Tag</th>
+                                                        <th>Inner Class</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="small">
+                                                    <tr>
+                                                        <td class="fw-bold">table</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTableTag" value="table"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTableClass" value="table table-bordered"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTableAttrs" value=""></td>
+                                                        <td class="text-muted text-center">-</td>
+                                                        <td class="text-muted text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-bold">thead</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTheadTag" value="thead"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTheadClass" value=""></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTheadAttrs" value=""></td>
+                                                        <td class="text-muted text-center">-</td>
+                                                        <td class="text-muted text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-bold">tbody</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTbodyTag" value="tbody"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTbodyClass" value=""></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTbodyAttrs" value=""></td>
+                                                        <td class="text-muted text-center">-</td>
+                                                        <td class="text-muted text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-bold">tfoot</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTfootTag" value="tfoot"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTfootClass" value=""></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTfootAttrs" value=""></td>
+                                                        <td class="text-muted text-center">-</td>
+                                                        <td class="text-muted text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-bold">tr</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTrTag" value="tr"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTrClass" value=""></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTrAttrs" value=""></td>
+                                                        <td class="text-muted text-center">-</td>
+                                                        <td class="text-muted text-center">-</td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-bold">th</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgThTag" value="th"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgThClass" value="heading-cell"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgThAttrs" value=""></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgThInnerTag" placeholder="e.g. p, span"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgThInnerClass" placeholder="e.g. mb-0"></td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td class="fw-bold">td</td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTdTag" value="td"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTdClass" value="text-center"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTdAttrs" value=""></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTdInnerTag" placeholder="e.g. p, span"></td>
+                                                        <td><input type="text" class="form-control form-control-sm" id="cfgTdInnerClass" placeholder="e.g. mb-0"></td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rule 6: Image Configuration -->
+                            <div class="accordion-item border rounded-3 mb-2">
+                                <h2 class="accordion-header" id="headingImages">
+                                    <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseImages" aria-expanded="false" aria-controls="collapseImages">
+                                        <i class="bi bi-image me-2 text-primary"></i> Images & Attributes
+                                    </button>
+                                </h2>
+                                <div id="collapseImages" class="accordion-collapse collapse" aria-labelledby="headingImages" data-bs-parent="#configAccordion">
+                                    <div class="accordion-body">
+                                        <div class="row g-2">
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small text-muted">Image CSS Class</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgImgClass" value="img-fluid rounded">
+                                            </div>
+                                            <div class="col-md-3 mb-2">
+                                                <label class="form-label small text-muted">Loading</label>
+                                                <select class="form-select form-select-sm" id="cfgImgLoading">
+                                                    <option value="lazy" selected>lazy</option>
+                                                    <option value="eager">eager</option>
+                                                    <option value="">(none)</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-3 mb-2">
+                                                <label class="form-label small text-muted">Decoding</label>
+                                                <select class="form-select form-select-sm" id="cfgImgDecoding">
+                                                    <option value="async" selected>async</option>
+                                                    <option value="sync">sync</option>
+                                                    <option value="auto">auto</option>
+                                                    <option value="">(none)</option>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-4 mb-2">
+                                                <label class="form-label small text-muted">Alt Text</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgImgAlt" placeholder="(default from doc)">
+                                            </div>
+                                            <div class="col-md-4 mb-2">
+                                                <label class="form-label small text-muted">Width</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgImgWidth" placeholder="e.g. 100%">
+                                            </div>
+                                            <div class="col-md-4 mb-2">
+                                                <label class="form-label small text-muted">Height</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgImgHeight" placeholder="e.g. auto">
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small text-muted">Image Wrapper Tag</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgImgWrapperTag" placeholder="e.g. div (leave empty for none)">
+                                            </div>
+                                            <div class="col-md-6 mb-2">
+                                                <label class="form-label small text-muted">Image Wrapper Class</label>
+                                                <input type="text" class="form-control form-control-sm" id="cfgImgWrapperClass" placeholder="e.g. image-wrapper text-center my-4">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rule 7: Hyperlink Manager -->
+                            <div class="accordion-item border rounded-3 mb-2">
+                                <h2 class="accordion-header" id="headingLinks">
+                                    <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseLinks" aria-expanded="false" aria-controls="collapseLinks">
+                                        <i class="bi bi-link-45deg me-2 text-primary"></i> Hyperlink Rules Manager
+                                    </button>
+                                </h2>
+                                <div id="collapseLinks" class="accordion-collapse collapse" aria-labelledby="headingLinks" data-bs-parent="#configAccordion">
+                                    <div class="accordion-body">
+                                        <!-- Fast Bulk Hyperlinks Input -->
+                                        <div class="mb-3 p-3 bg-light rounded-3 border">
+                                            <label class="form-label small fw-semibold text-body mb-1">Fast Bulk Hyperlinks (Line-by-line: <code>Target Text : URL</code>)</label>
+                                            <textarea class="form-control font-monospace small" id="cfgBulkLinks" rows="4" placeholder="HTML Content : https://example.com/html&#10;Aryan Barot : https://aryan.com&#10;Every HTML document follows : htmldocument.php"></textarea>
+                                            <div class="d-flex gap-4 mt-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="cfgBulkCaseSensitive">
+                                                    <label class="form-check-label small" for="cfgBulkCaseSensitive">Bulk Case Sensitive</label>
+                                                </div>
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox" id="cfgBulkBoldOnly" checked>
+                                                    <label class="form-check-label small" for="cfgBulkBoldOnly">Bulk Match Bold Only</label>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="d-flex justify-content-between align-items-center mb-3">
+                                            <p class="text-muted small mb-0">Single Target Hyperlink Rule Cards:</p>
+                                            <button type="button" class="btn btn-sm btn-outline-primary" id="addLinkRuleBtn">
+                                                <i class="bi bi-plus-lg me-1"></i> Add Rule Card
+                                            </button>
+                                        </div>
+                                        
+                                        <div id="linkRulesContainer" class="d-flex flex-column gap-2">
+                                            <!-- Dynamic Link Rules will be inserted here -->
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Rule 8: Custom Start & End Code -->
+                            <div class="accordion-item border rounded-3 mb-2">
+                                <h2 class="accordion-header" id="headingCustomCode">
+                                    <button class="accordion-button collapsed fw-semibold" type="button" data-bs-toggle="collapse" data-bs-target="#collapseCustomCode" aria-expanded="false" aria-controls="collapseCustomCode">
+                                        <i class="bi bi-code me-2 text-primary"></i> Custom Start & End Code
+                                    </button>
+                                </h2>
+                                <div id="collapseCustomCode" class="accordion-collapse collapse" aria-labelledby="headingCustomCode" data-bs-parent="#configAccordion">
+                                    <div class="accordion-body">
+                                        <div class="mb-3">
+                                            <label class="form-label small fw-medium">Custom Start Code (Prepended before output)</label>
+                                            <textarea class="form-control font-monospace small" id="cfgStartCode" rows="2" placeholder="e.g. {% load static %}&#10;{% include 'header.html' %}"></textarea>
+                                        </div>
+                                        <div>
+                                            <label class="form-label small fw-medium">Custom End Code (Appended after output)</label>
+                                            <textarea class="form-control font-monospace small" id="cfgEndCode" rows="2" placeholder="e.g. {% include 'footer.html' %}"></textarea>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                        </div> <!-- /#configAccordion -->
                     </div>
                 </div>
 
                 <!-- Convert Action Button -->
-                <button type="button" class="btn btn-primary btn-lg w-100 py-3 fw-semibold shadow-sm rounded-3 d-flex align-items-center justify-content-center gap-2" id="convertButton">
+                <button type="button" class="btn btn-primary btn-lg w-100 py-3 fw-semibold shadow-sm rounded-3 d-flex align-items-center justify-content-center gap-2 mb-3" id="convertButton">
                     <i class="bi bi-play-fill fs-5"></i>
-                    <span>Convert Document</span>
+                    <span>Generate HTML Output</span>
                 </button>
                 
             </div>
@@ -132,7 +497,7 @@
                     <!-- Panel Tab Content Area -->
                     <div class="card-body p-4 flex-grow-1 tab-content d-flex flex-column">
                         
-                        <!-- Tab 1: Live Preview (Iframe inside Mock Browser Frame) -->
+                        <!-- Tab 1: Live Preview -->
                         <div class="tab-pane fade show active" id="previewTabPane" role="tabpanel" aria-labelledby="preview-tab">
                             <div class="mock-browser border rounded-3 overflow-hidden d-flex flex-column flex-grow-1 bg-light">
                                 <div class="mock-browser-bar d-flex align-items-center bg-white border-bottom px-3 py-2 gap-2 flex-shrink-0">
@@ -152,26 +517,33 @@
                                     <iframe id="previewIframe" class="w-100 h-100 border-0 bg-white" sandbox="allow-same-origin allow-scripts"></iframe>
                                     <div class="preview-empty-state d-flex flex-column align-items-center justify-content-center h-100 text-center p-4" id="previewEmptyState">
                                         <i class="bi bi-eye text-muted fs-1 mb-2"></i>
-                                        <h4 class="h6 fw-semibold text-dark">Live Output Preview</h4>
+                                        <h4 class="h6 fw-semibold mb-2">Live Output Preview</h4>
                                         <p class="text-muted small max-w-300">Once your Word document is converted, the HTML output will render here in real-time.</p>
                                     </div>
                                 </div>
                             </div>
                         </div>
                         
-                        <!-- Tab 2: Generated HTML (Code Editor view) -->
+                        <!-- Tab 2: Generated HTML -->
                         <div class="tab-pane fade position-relative" id="htmlTabPane" role="tabpanel" aria-labelledby="html-tab">
                             <div class="code-view-container border rounded-3 overflow-hidden d-flex flex-column flex-grow-1 bg-dark">
-                                <div class="code-view-header bg-dark-subtle border-bottom border-secondary-subtle px-3 py-2 d-flex justify-content-between align-items-center flex-shrink-0 text-secondary">
-                                    <span class="small font-monospace text-light-emphasis">output.html</span>
-                                    <div class="d-flex gap-2">
+                                <div class="code-view-header bg-dark-subtle border-bottom border-secondary-subtle px-3 py-2 d-flex flex-wrap justify-content-between align-items-center gap-2 flex-shrink-0 text-secondary">
+                                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                                        <span class="small font-monospace text-light-emphasis" id="activeFilenameLabel">output.html</span>
+                                        <select class="form-select form-select-sm bg-dark text-light border-secondary small d-none" id="convertedFileSelect" style="max-width: 220px;"></select>
+                                    </div>
+                                    <div class="d-flex flex-wrap gap-2">
                                         <button class="btn btn-sm btn-dark text-light border-secondary d-flex align-items-center gap-1" id="copyHtmlButton">
                                             <i class="bi bi-clipboard"></i>
                                             <span>Copy HTML</span>
                                         </button>
-                                        <button class="btn btn-sm btn-primary d-flex align-items-center gap-1" id="downloadHtmlButton">
+                                        <button class="btn btn-sm btn-outline-light d-flex align-items-center gap-1" id="downloadHtmlButton">
                                             <i class="bi bi-download"></i>
                                             <span>Download HTML</span>
+                                        </button>
+                                        <button class="btn btn-sm btn-primary d-flex align-items-center gap-1 d-none" id="downloadZipButton">
+                                            <i class="bi bi-file-zip-fill"></i>
+                                            <span>Download ZIP (.zip)</span>
                                         </button>
                                     </div>
                                 </div>
@@ -181,7 +553,7 @@
                             </div>
                         </div>
                         
-                        <!-- Tab 3: Conversion Logs (Terminal style console) -->
+                        <!-- Tab 3: Conversion Logs -->
                         <div class="tab-pane fade" id="logsTabPane" role="tabpanel" aria-labelledby="logs-tab">
                             <div class="logs-console border rounded-3 overflow-hidden d-flex flex-column flex-grow-1 bg-dark text-light font-monospace">
                                 <div class="logs-console-header bg-dark-subtle border-bottom border-secondary-subtle px-3 py-2 d-flex justify-content-between align-items-center flex-shrink-0">
@@ -208,64 +580,29 @@
                 <div class="modal-header border-bottom py-3">
                     <h5 class="modal-title fw-semibold d-flex align-items-center gap-2" id="helpModalLabel">
                         <i class="bi bi-question-circle text-primary"></i>
-                        <span>How to Use the Template Converter</span>
+                        <span>Configuration Guide</span>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="mb-4">
-                        <h6 class="fw-semibold text-dark mb-2">1. Uploading your document</h6>
-                        <p class="text-muted">Drag & Drop any Microsoft Word document (.docx) into the upload area. The system handles local reading in the browser. No files are uploaded to any server, making the process secure.</p>
+                        <h6 class="fw-semibold mb-2">1. Upload Word Document</h6>
+                        <p class="text-muted">Upload any Microsoft Word document (.docx). The application runs entirely client-side in your browser for total privacy and security.</p>
                     </div>
                     
                     <div class="mb-4">
-                        <h6 class="fw-semibold text-dark mb-2">2. Defining HTML structure blocks</h6>
-                        <p class="text-muted">Instead of uploading one giant template, you define specific reusable HTML blocks in the builder. The converter automatically determines which template block to use by analyzing the structure of the document.</p>
-                        
-                        <div class="table-responsive mt-3">
-                            <table class="table table-bordered table-sm small">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th>Detected Element</th>
-                                        <th>Target Template</th>
-                                        <th>Available Variables</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr>
-                                        <td>Heading + subsequent text paragraphs</td>
-                                        <td><strong>Content Section</strong></td>
-                                        <td><code>{{heading}}</code> (H2-H6), <code>{{paragraph}}</code> (HTML content of paragraphs)</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Word Document Tables</td>
-                                        <td><strong>Table Section</strong></td>
-                                        <td><code>{{table}}</code> (HTML structure of table rows/cells)</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Bullet points / Numbered lists</td>
-                                        <td><strong>List Section</strong></td>
-                                        <td><code>{{list}}</code> (Generated list items in <code>&lt;li&gt;</code> tags)</td>
-                                    </tr>
-                                    <tr>
-                                        <td>Embedded images</td>
-                                        <td><strong>Image Section</strong></td>
-                                        <td><code>{{image}}</code> (Encoded base64 <code>&lt;img&gt;</code> element)</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-                        </div>
+                        <h6 class="fw-semibold mb-2">2. Parent Wrapper Modes</h6>
+                        <p class="text-muted"><strong>Repeat Parent (Mode A)</strong>: Wraps every section under a heading into a separate wrapper tag (e.g. <code>&lt;div class="blog-info-details"&gt;</code>).<br><strong>Single Parent (Mode B)</strong>: Wraps the entire document into one single outer wrapper.</p>
                     </div>
-                    
+
+                    <div class="mb-4">
+                        <h6 class="fw-semibold mb-2">3. Tag & Class Rules</h6>
+                        <p class="text-muted">Configure output tags and CSS classes for Headings (H1-H6), Paragraphs, Lists (UL/OL/LI), Tables, Cells, and Images. Empty class/attribute fields will be omitted from the output automatically.</p>
+                    </div>
+
                     <div>
-                        <h6 class="fw-semibold text-dark mb-2">3. Variable substitution examples</h6>
-                        <p class="text-muted mb-2">Each block supports substitution tags. For instance, the default Content Block looks like this:</p>
-                        <pre class="bg-light p-3 rounded text-dark font-monospace small mb-0"><code>&lt;section class="content"&gt;
-    &lt;div class="container"&gt;
-        &lt;h2&gt;{{heading}}&lt;/h2&gt;
-        &lt;p&gt;{{paragraph}}&lt;/p&gt;
-    &lt;/div&gt;
-&lt;/section&gt;</code></pre>
+                        <h6 class="fw-semibold mb-2">4. Hyperlink Manager</h6>
+                        <p class="text-muted">Define phrase replacement rules with custom URLs, targets, and optional <strong>Match Bold Only</strong> mode to target text inside bold Word formatting.</p>
                     </div>
                 </div>
                 <div class="modal-footer border-top">
@@ -275,61 +612,45 @@
         </div>
     </div>
 
-    <!-- Settings Modal -->
-    <div class="modal fade" id="settingsModal" tabindex="-1" aria-labelledby="settingsModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
-            <div class="modal-content rounded-3 border-0 bg-white">
+    <!-- Per-File Hyperlinks Dedicated Modal -->
+    <div class="modal fade" id="fileLinksModal" tabindex="-1" aria-labelledby="fileLinksModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content rounded-3 border-0 bg-white shadow">
                 <div class="modal-header border-bottom py-3">
-                    <h5 class="modal-title fw-semibold d-flex align-items-center gap-2" id="settingsModalLabel">
-                        <i class="bi bi-gear text-primary"></i>
-                        <span>Conversion Settings</span>
+                    <h5 class="modal-title fw-semibold d-flex align-items-center gap-2" id="fileLinksModalLabel">
+                        <i class="bi bi-link-45deg text-primary fs-4"></i>
+                        <span>Hyperlinks for: <strong id="modalFileName" class="text-primary">filename.docx</strong></span>
                     </h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-4">
-                    
-                    <div class="mb-4">
-                        <label class="form-label fw-semibold text-dark mb-2">HTML Output Wrapper</label>
-                        <select class="form-select" id="settingWrapper">
-                            <option value="none" selected>None (Raw block list only)</option>
-                            <option value="html5">Standard HTML5 Boilerplate</option>
-                            <option value="bootstrap5">Bootstrap 5 Page Wrapper</option>
-                        </select>
-                        <p class="text-muted small mt-1">Wrap the combined blocks in a complete HTML document with optional Bootstrap assets.</p>
-                    </div>
-
-                    <div class="mb-4">
-                        <label class="form-label fw-semibold text-dark mb-2">Cleaning Rules</label>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="cleanEmptyParagraphs" checked>
-                            <label class="form-check-label text-dark" for="cleanEmptyParagraphs">
-                                Remove empty paragraphs (<code>&lt;p&gt;&lt;/p&gt;</code>)
-                            </label>
-                        </div>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="cleanWordClasses" checked>
-                            <label class="form-check-label text-dark" for="cleanWordClasses">
-                                Strip Word styling classes (e.g. <code>class="xl23"</code>)
-                            </label>
-                        </div>
-                        <div class="form-check mb-2">
-                            <input class="form-check-input" type="checkbox" id="cleanInlineStyles" checked>
-                            <label class="form-check-label text-dark" for="cleanInlineStyles">
-                                Strip inline element styles (<code>style="..."</code>)
-                            </label>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold small text-body mb-1">
+                            Fast Bulk Links for this file (Paste line-by-line using <code>&gt;&gt;</code>, <code>||</code>, or <code>:</code>)
+                        </label>
+                        <textarea class="form-control font-monospace p-3 small" id="modalBulkLinksTextarea" rows="9" placeholder="HTML Content &gt;&gt; https://example.com/html&#10;Aryan Barot || https://aryan.com&#10;Every HTML document follows : htmldocument.php"></textarea>
+                        <div class="form-text extra-small text-muted mt-2">
+                            Supported delimiters:<br>
+                            • <code>Target Phrase &gt;&gt; https://url.com</code><br>
+                            • <code>Target Phrase || https://url.com</code><br>
+                            • <code>Target Phrase : https://url.com</code>
                         </div>
                     </div>
 
-                    <div>
-                        <label class="form-label fw-semibold text-dark mb-2">Advanced Style Mapping</label>
-                        <textarea class="form-control font-monospace small" id="settingStyleMap" rows="3" placeholder="p[style-name='Heading 1'] => h1:fresh"></textarea>
-                        <p class="text-muted small mt-1">Define custom Mammoth style mappings (one mapping per line).</p>
+                    <div class="d-flex gap-4 p-3 bg-light rounded-3 border">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="modalCaseSensitive">
+                            <label class="form-check-label small fw-medium" for="modalCaseSensitive">Case Sensitive Matching</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="modalBoldOnly" checked>
+                            <label class="form-check-label small fw-medium" for="modalBoldOnly">Match Bold Content Only</label>
+                        </div>
                     </div>
-
                 </div>
-                <div class="modal-footer border-top">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="saveSettingsBtn" data-bs-dismiss="modal">Save Changes</button>
+                <div class="modal-footer border-top py-2">
+                    <button type="button" class="btn btn-secondary btn-sm px-3" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary btn-sm px-4" id="saveFileLinksBtn">Save File Links</button>
                 </div>
             </div>
         </div>
@@ -345,7 +666,14 @@
     <script src="https://cdn.jsdelivr.net/npm/prismjs@1.30.0/plugins/autoloader/prism-autoloader.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     
-    <!-- Main Application JS -->
+    <!-- Modular Application JS -->
+    <script src="js/config.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/linkManager.js"></script>
+    <script src="js/generator.js"></script>
+    <script src="js/formatter.js"></script>
+    <script src="js/preview.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>

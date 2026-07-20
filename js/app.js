@@ -1,301 +1,405 @@
 /**
- * Word to HTML Template Converter - Application Controller
+ * Word to HTML Converter - Main Application Controller
+ * Supports multi-file batch conversion, Per-File Hyperlinks Modal, Delimiters (>>, ||, :), and JSZip bundling.
  */
 
 $(document).ready(function() {
+    'use strict';
+
+    let uploadedFiles = []; // Array of { file, name, bulkLinksText, caseSensitive, boldOnly, parsedRules, formattedHtml }
+    let activeFileIndex = 0;
+    let editingFileIdx = null;
+
+    // Helper: Parse Bulk Links Text (supports >>, ||, :)
+    function parseBulkLinksText(text, defaultCaseSensitive = false, defaultBoldOnly = true) {
+        if (!text || !text.trim()) return [];
+        const lines = text.split('\n');
+        const rules = [];
+
+        lines.forEach((line, idx) => {
+            const trimmed = line.trim();
+            if (!trimmed) return;
+
+            let target = '';
+            let url = '';
+
+            if (trimmed.includes('>>')) {
+                const parts = trimmed.split('>>');
+                target = parts[0].trim();
+                url = parts.slice(1).join('>>').trim();
+            } else if (trimmed.includes('||')) {
+                const parts = trimmed.split('||');
+                target = parts[0].trim();
+                url = parts.slice(1).join('||').trim();
+            } else if (trimmed.includes(':')) {
+                const parts = trimmed.split(':');
+                target = parts[0].trim();
+                url = parts.slice(1).join(':').trim();
+            }
+
+            if (target && url) {
+                rules.push({
+                    id: 'bulk_' + idx + '_' + Date.now(),
+                    target: target,
+                    url: url,
+                    targetAttr: '_blank',
+                    title: '',
+                    rel: '',
+                    caseSensitive: defaultCaseSensitive,
+                    boldOnly: defaultBoldOnly
+                });
+            }
+        });
+
+        return rules;
+    }
+
+    // Initialize configuration from LocalStorage if available
+    const savedConfig = window.ConverterStorage ? window.ConverterStorage.load() : null;
+    if (savedConfig) {
+        window.ConverterConfig.set(savedConfig);
+        logSystemEvent('Loaded saved configuration from LocalStorage.');
+    } else {
+        logSystemEvent('Initialized with default configuration.');
+    }
+
+    // Populate all UI fields from active ConverterConfig
+    populateUIFromConfig();
+
     // ==========================================================================
-    // State Initialization
+    // UI Form Binding & Synchronization
     // ==========================================================================
-    
-    // Default HTML Template Blocks preloaded with custom card styles
-    let blocks = [
-        {
-            id: 'block_1',
-            name: 'Content Section',
-            type: 'content',
-            template: `<div class="blog-info-details">
-    <h2>{{heading}}</h2>
-    <p>{{paragraph}}</p>
-</div>`,
-            isCollapsed: false
-        },
-        {
-            id: 'block_2',
-            name: 'List Section (With Text)',
-            type: 'list',
-            template: `<div class="blog-info-details">
-    <h2>{{heading}}</h2>
-    <p>{{paragraph}}</p>
-    <ul>
-        <li>{{list}}</li>
-    </ul>
-</div>`,
-            isCollapsed: false
-        },
-        {
-            id: 'block_3',
-            name: 'List Section (No Text)',
-            type: 'list',
-            template: `<div class="blog-info-details">
-    <h2>{{heading}}</h2>
-    <ul>
-        <li>{{list}}</li>
-    </ul>
-</div>`,
-            isCollapsed: false
-        },
-        {
-            id: 'block_4',
-            name: 'Table Section',
-            type: 'table',
-            template: `<div class="blog-info-details">
-    <h2>{{heading}}</h2>
-    <div class="table-responsive my-3">
-        <table class="table table-bordered align-middle">
-            {{table}}
-        </table>
-    </div>
-</div>`,
-            isCollapsed: false
-        },
-        {
-            id: 'block_5',
-            name: 'Image Section',
-            type: 'image',
-            template: `<div class="blog-info-details">
-    <h2>{{heading}}</h2>
-    <div class="image-wrapper text-center my-4">
-        {{image}}
-    </div>
-</div>`,
-            isCollapsed: false
+
+    function populateUIFromConfig() {
+        const cfg = window.ConverterConfig.get();
+
+        // 1. Wrapper
+        if (cfg.wrapper) {
+            $(`input[name="wrapperMode"][value="${cfg.wrapper.mode || 'repeat'}"]`).prop('checked', true);
+            $('#cfgWrapperTag').val(cfg.wrapper.tag || 'div');
+            $('#cfgWrapperClass').val(cfg.wrapper.class || '');
+            $('#cfgWrapperId').val(cfg.wrapper.id || '');
+            $('#cfgWrapperAttrs').val(cfg.wrapper.attrs || '');
         }
-    ];
 
-    let currentFile = null;
-    let convertedHtml = '';
-    
-    // Global Settings state
-    let settings = {
-        wrapper: 'none',
-        cleanEmptyParagraphs: true,
-        cleanWordClasses: true,
-        cleanInlineStyles: true,
-        styleMap: ''
-    };
+        // 2. Headings
+        if (cfg.headings) {
+            ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(h => {
+                const hKey = h.toUpperCase();
+                if (cfg.headings[h]) {
+                    $(`#cfg${hKey}Tag`).val(cfg.headings[h].tag || '');
+                    $(`#cfg${hKey}Class`).val(cfg.headings[h].class || '');
+                }
+            });
+        }
+
+        // 3. Paragraph
+        if (cfg.paragraph) {
+            $('#cfgParagraphTag').val(cfg.paragraph.tag || 'p');
+            $('#cfgParagraphClass').val(cfg.paragraph.class || '');
+        }
+
+        // 4. Lists
+        if (cfg.list) {
+            if (cfg.list.ul) {
+                $('#cfgUlTag').val(cfg.list.ul.tag || 'ul');
+                $('#cfgUlClass').val(cfg.list.ul.class || '');
+            }
+            if (cfg.list.ol) {
+                $('#cfgOlTag').val(cfg.list.ol.tag || 'ol');
+                $('#cfgOlClass').val(cfg.list.ol.class || '');
+            }
+            if (cfg.list.li) {
+                $('#cfgLiTag').val(cfg.list.li.tag || 'li');
+                $('#cfgLiClass').val(cfg.list.li.class || '');
+            }
+        }
+
+        // 5. Tables
+        if (cfg.table) {
+            ['table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td'].forEach(elKey => {
+                const elRule = cfg.table[elKey];
+                if (elRule) {
+                    const capKey = elKey.charAt(0).toUpperCase() + elKey.slice(1);
+                    $(`#cfg${capKey}Tag`).val(elRule.tag || '');
+                    $(`#cfg${capKey}Class`).val(elRule.class || '');
+                    $(`#cfg${capKey}Attrs`).val(elRule.attrs || '');
+                    if (elKey === 'th' || elKey === 'td') {
+                        $(`#cfg${capKey}InnerTag`).val(elRule.innerTag || '');
+                        $(`#cfg${capKey}InnerClass`).val(elRule.innerClass || '');
+                    }
+                }
+            });
+        }
+
+        // 6. Image
+        if (cfg.image) {
+            $('#cfgImgClass').val(cfg.image.class || '');
+            $('#cfgImgLoading').val(cfg.image.loading || '');
+            $('#cfgImgDecoding').val(cfg.image.decoding || '');
+            $('#cfgImgAlt').val(cfg.image.alt || '');
+            $('#cfgImgWidth').val(cfg.image.width || '');
+            $('#cfgImgHeight').val(cfg.image.height || '');
+            $('#cfgImgWrapperTag').val(cfg.image.wrapperTag || '');
+            $('#cfgImgWrapperClass').val(cfg.image.wrapperClass || '');
+        }
+
+        // 7. Custom Start / End Code
+        $('#cfgStartCode').val(cfg.startCode || '');
+        $('#cfgEndCode').val(cfg.endCode || '');
+
+        // 8. Global Hyperlink Rules
+        renderLinkRules();
+    }
+
+    function syncUItoConfig() {
+        const cfg = window.ConverterConfig.get();
+
+        // 1. Wrapper
+        cfg.wrapper.mode = $('input[name="wrapperMode"]:checked').val() || 'repeat';
+        cfg.wrapper.tag = $('#cfgWrapperTag').val().trim();
+        cfg.wrapper.class = $('#cfgWrapperClass').val().trim();
+        cfg.wrapper.id = $('#cfgWrapperId').val().trim();
+        cfg.wrapper.attrs = $('#cfgWrapperAttrs').val().trim();
+
+        // 2. Headings
+        ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(h => {
+            const hKey = h.toUpperCase();
+            cfg.headings[h] = {
+                tag: $(`#cfg${hKey}Tag`).val().trim(),
+                class: $(`#cfg${hKey}Class`).val().trim()
+            };
+        });
+
+        // 3. Paragraph
+        cfg.paragraph = {
+            tag: $('#cfgParagraphTag').val().trim(),
+            class: $('#cfgParagraphClass').val().trim()
+        };
+
+        // 4. Lists
+        cfg.list = {
+            ul: { tag: $('#cfgUlTag').val().trim(), class: $('#cfgUlClass').val().trim() },
+            ol: { tag: $('#cfgOlTag').val().trim(), class: $('#cfgOlClass').val().trim() },
+            li: { tag: $('#cfgLiTag').val().trim(), class: $('#cfgLiClass').val().trim() }
+        };
+
+        // 5. Tables
+        cfg.table = {
+            table: { tag: $('#cfgTableTag').val().trim(), class: $('#cfgTableClass').val().trim(), attrs: $('#cfgTableAttrs').val().trim() },
+            thead: { tag: $('#cfgTheadTag').val().trim(), class: $('#cfgTheadClass').val().trim(), attrs: $('#cfgTheadAttrs').val().trim() },
+            tbody: { tag: $('#cfgTbodyTag').val().trim(), class: $('#cfgTbodyClass').val().trim(), attrs: $('#cfgTbodyAttrs').val().trim() },
+            tfoot: { tag: $('#cfgTfootTag').val().trim(), class: $('#cfgTfootClass').val().trim(), attrs: $('#cfgTfootAttrs').val().trim() },
+            tr: { tag: $('#cfgTrTag').val().trim(), class: $('#cfgTrClass').val().trim(), attrs: $('#cfgTrAttrs').val().trim() },
+            th: { 
+                tag: $('#cfgThTag').val().trim(), 
+                class: $('#cfgThClass').val().trim(), 
+                attrs: $('#cfgThAttrs').val().trim(),
+                innerTag: $('#cfgThInnerTag').val().trim(),
+                innerClass: $('#cfgThInnerClass').val().trim()
+            },
+            td: { 
+                tag: $('#cfgTdTag').val().trim(), 
+                class: $('#cfgTdClass').val().trim(), 
+                attrs: $('#cfgTdAttrs').val().trim(),
+                innerTag: $('#cfgTdInnerTag').val().trim(),
+                innerClass: $('#cfgTdInnerClass').val().trim()
+            }
+        };
+
+        // 6. Image
+        cfg.image = {
+            class: $('#cfgImgClass').val().trim(),
+            loading: $('#cfgImgLoading').val(),
+            decoding: $('#cfgImgDecoding').val(),
+            alt: $('#cfgImgAlt').val().trim(),
+            width: $('#cfgImgWidth').val().trim(),
+            height: $('#cfgImgHeight').val().trim(),
+            wrapperTag: $('#cfgImgWrapperTag').val().trim(),
+            wrapperClass: $('#cfgImgWrapperClass').val().trim()
+        };
+
+        // 7. Custom Start / End Code
+        cfg.startCode = $('#cfgStartCode').val();
+        cfg.endCode = $('#cfgEndCode').val();
+
+        // 8. Global Hyperlink Rules (Global Bulk Textarea + Single Card Rules)
+        cfg.links = [];
+
+        const bulkText = $('#cfgBulkLinks').val() || '';
+        const bulkCaseSensitive = $('#cfgBulkCaseSensitive').is(':checked');
+        const bulkBoldOnly = $('#cfgBulkBoldOnly').is(':checked');
+        cfg.links.push(...parseBulkLinksText(bulkText, bulkCaseSensitive, bulkBoldOnly));
+
+        $('.link-rule-card').each(function() {
+            const $card = $(this);
+            const target = $card.find('.link-target').val().trim();
+            const url = $card.find('.link-url').val().trim();
+            if (target && url) {
+                cfg.links.push({
+                    id: $card.data('id'),
+                    target: target,
+                    url: url,
+                    targetAttr: $card.find('.link-targetattr').val(),
+                    title: $card.find('.link-title').val().trim(),
+                    rel: '',
+                    caseSensitive: $card.find('.link-casesensitive').is(':checked'),
+                    boldOnly: $card.find('.link-boldonly').is(':checked')
+                });
+            }
+        });
+
+        // Auto save to LocalStorage
+        window.ConverterStorage.save(cfg);
+    }
+
+    // Attach change/input listeners to all config inputs
+    $(document).on('input change', '#configAccordion input, #configAccordion select, #configAccordion textarea', function() {
+        syncUItoConfig();
+    });
 
     // ==========================================================================
-    // UI Render: HTML Structure Builder Blocks
+    // Dynamic Hyperlink Rules Manager UI
     // ==========================================================================
-    
-    function renderBlocks() {
-        const $list = $('#blocksList');
-        $list.empty();
-        
-        blocks.forEach((block, index) => {
-            let placeholderHint = '';
-            if (block.type === 'content') placeholderHint = '{{heading}}, {{paragraph}}';
-            else if (block.type === 'table') placeholderHint = '{{table}}';
-            else if (block.type === 'list') placeholderHint = '{{list}}';
-            else if (block.type === 'image') placeholderHint = '{{image}}';
-            
-            const blockEl = `
-                <div class="structure-block ${block.isCollapsed ? 'collapsed' : ''}" data-id="${block.id}">
-                    <!-- Block Header -->
-                    <div class="structure-block-header d-flex align-items-center justify-content-between">
-                        <div class="d-flex align-items-center gap-2 flex-grow-1 me-2 overflow-hidden">
-                            <span class="block-drag-handle text-muted" title="Drag structure"><i class="bi bi-justify"></i></span>
-                            
-                            <!-- Up & Down Arrows for reordering -->
-                            <div class="d-flex flex-column btn-group-vertical">
-                                <button type="button" class="btn p-0 lh-1 move-up-btn" style="font-size: 10px;" title="Move Up" ${index === 0 ? 'disabled' : ''}>
-                                    <i class="bi bi-caret-up-fill"></i>
-                                </button>
-                                <button type="button" class="btn p-0 lh-1 move-down-btn" style="font-size: 10px;" title="Move Down" ${index === blocks.length - 1 ? 'disabled' : ''}>
-                                    <i class="bi bi-caret-down-fill"></i>
-                                </button>
-                            </div>
-                            
-                            <!-- Editable Block Name -->
-                            <input type="text" class="form-control form-control-sm fw-semibold border-0 bg-transparent block-name-input text-dark" value="${block.name}" placeholder="Structure Name" style="max-width: 150px;">
-                            
-                            <!-- Match Target selector -->
-                            <select class="form-select form-select-sm border-0 bg-transparent block-type-select text-primary" style="max-width: 140px; font-size: 12px; font-weight: 500;">
-                                <option value="content" ${block.type === 'content' ? 'selected' : ''}>Match: Content</option>
-                                <option value="table" ${block.type === 'table' ? 'selected' : ''}>Match: Table</option>
-                                <option value="list" ${block.type === 'list' ? 'selected' : ''}>Match: List</option>
-                                <option value="image" ${block.type === 'image' ? 'selected' : ''}>Match: Image</option>
+
+    function renderLinkRules() {
+        const $container = $('#linkRulesContainer');
+        $container.empty();
+
+        const cfg = window.ConverterConfig.get();
+        const rules = (cfg.links || []).filter(r => !String(r.id).startsWith('bulk_'));
+
+        if (rules.length === 0) {
+            $container.append('<p class="text-muted small mb-0 fst-italic">No single rule cards added yet. Use "+ Add Rule Card" or paste bulk links above.</p>');
+            return;
+        }
+
+        rules.forEach((rule, idx) => {
+            const cardHtml = `
+                <div class="link-rule-card border rounded-3 p-3 bg-white mb-2" data-id="${rule.id || idx}">
+                    <div class="row g-2 align-items-center">
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">Target Text</label>
+                            <input type="text" class="form-control form-control-sm link-target" value="${rule.target || ''}" placeholder="e.g. Aryan Barot">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small text-muted mb-1">URL</label>
+                            <input type="text" class="form-control form-control-sm link-url" value="${rule.url || ''}" placeholder="e.g. mypage.php">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Open In</label>
+                            <select class="form-select form-select-sm link-targetattr">
+                                <option value="_blank" ${rule.targetAttr === '_blank' ? 'selected' : ''}>_blank</option>
+                                <option value="_self" ${rule.targetAttr === '_self' ? 'selected' : ''}>_self</option>
+                                <option value="" ${!rule.targetAttr ? 'selected' : ''}>(none)</option>
                             </select>
                         </div>
-                        
-                        <!-- Block Action buttons -->
-                        <div class="d-flex align-items-center gap-1">
-                            <button type="button" class="btn btn-sm btn-icon btn-light rounded-circle duplicate-block-btn" title="Duplicate Structure">
-                                <i class="bi bi-copy text-muted"></i>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-icon btn-light rounded-circle delete-block-btn" title="Delete Structure">
-                                <i class="bi bi-trash text-danger"></i>
-                            </button>
-                            <button type="button" class="btn btn-sm btn-icon btn-light rounded-circle toggle-collapse-btn" title="${block.isCollapsed ? 'Expand' : 'Collapse'}">
-                                <i class="bi ${block.isCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'} text-muted"></i>
+                        <div class="col-md-2">
+                            <label class="form-label small text-muted mb-1">Title</label>
+                            <input type="text" class="form-control form-control-sm link-title" value="${rule.title || ''}" placeholder="Title">
+                        </div>
+                        <div class="col-md-2 text-end">
+                            <button type="button" class="btn btn-sm btn-outline-danger delete-link-btn mt-4" title="Delete Rule">
+                                <i class="bi bi-trash"></i>
                             </button>
                         </div>
-                    </div>
-                    
-                    <!-- Block Body -->
-                    <div class="structure-block-body ${block.isCollapsed ? 'd-none' : ''}">
-                        <div class="mb-1 d-flex justify-content-between align-items-center">
-                            <label class="form-label small text-muted mb-0">HTML Template Structure</label>
-                            <span class="small text-muted font-monospace" style="font-size: 11px;">
-                                Placeholders: <code class="text-primary">${placeholderHint}</code>
-                            </span>
+                        <div class="col-12 d-flex gap-4 pt-1">
+                            <div class="form-check">
+                                <input class="form-check-input link-casesensitive" type="checkbox" id="chkCase_${idx}" ${rule.caseSensitive ? 'checked' : ''}>
+                                <label class="form-check-label small" for="chkCase_${idx}">Case Sensitive</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input link-boldonly" type="checkbox" id="chkBold_${idx}" ${rule.boldOnly ? 'checked' : ''}>
+                                <label class="form-check-label small" for="chkBold_${idx}">Match Bold Only</label>
+                            </div>
                         </div>
-                        <textarea class="form-control block-template-textarea" rows="4" placeholder="Enter HTML wrapper structure here">${block.template}</textarea>
                     </div>
                 </div>
             `;
-            $list.append(blockEl);
+            $container.append(cardHtml);
         });
-        
-        // Update total counter badge
-        $('#blockCountBadge').text(`${blocks.length} Blocks`);
     }
 
-    // Initialize UI
-    renderBlocks();
-
-    // ==========================================================================
-    // Event Handlers for Block Builder Actions
-    // ==========================================================================
-    
-    // Add HTML Structure Block
-    $('#addBlockButton').on('click', function() {
-        const newId = 'block_' + Date.now();
-        blocks.push({
-            id: newId,
-            name: 'New Custom Section',
-            type: 'content',
-            template: `<section class="custom-section py-3">\n    <div class="container">\n        <h2>{{heading}}</h2>\n        <p>{{paragraph}}</p>\n    </div>\n</section>`,
-            isCollapsed: false
+    $('#addLinkRuleBtn').on('click', function() {
+        const cfg = window.ConverterConfig.get();
+        if (!cfg.links) cfg.links = [];
+        cfg.links.push({
+            id: 'link_' + Date.now(),
+            target: '',
+            url: '',
+            targetAttr: '_blank',
+            title: '',
+            rel: '',
+            caseSensitive: false,
+            boldOnly: true
         });
-        logSystemEvent('Added new HTML structure block.');
-        renderBlocks();
-        // Scroll to the bottom of the list
-        const blocksList = document.getElementById('blocksList');
-        blocksList.scrollTop = blocksList.scrollHeight;
+        window.ConverterStorage.save(cfg);
+        renderLinkRules();
+        logSystemEvent('Added new Hyperlink Rule Card.');
     });
 
-    // Toggle Collapse
-    $(document).on('click', '.toggle-collapse-btn', function() {
-        const id = $(this).closest('.structure-block').data('id');
-        const block = blocks.find(b => b.id === id);
-        if (block) {
-            block.isCollapsed = !block.isCollapsed;
-            renderBlocks();
-        }
+    $(document).on('input change', '.link-rule-card input, .link-rule-card select', function() {
+        syncUItoConfig();
     });
 
-    // Delete Block
-    $(document).on('click', '.delete-block-btn', function() {
-        const id = $(this).closest('.structure-block').data('id');
-        blocks = blocks.filter(b => b.id !== id);
-        logSystemEvent('Removed structure block.');
-        renderBlocks();
+    $(document).on('click', '.delete-link-btn', function() {
+        const $card = $(this).closest('.link-rule-card');
+        const ruleId = $card.data('id');
+        const cfg = window.ConverterConfig.get();
+
+        cfg.links = (cfg.links || []).filter(r => r.id !== ruleId && r.id != ruleId);
+        window.ConverterStorage.save(cfg);
+        renderLinkRules();
+        logSystemEvent('Removed Hyperlink Rule.');
     });
 
-    // Duplicate Block
-    $(document).on('click', '.duplicate-block-btn', function() {
-        const id = $(this).closest('.structure-block').data('id');
-        const original = blocks.find(b => b.id === id);
-        if (original) {
-            const index = blocks.indexOf(original);
-            const copy = {
-                ...original,
-                id: 'block_' + Date.now(),
-                name: original.name + ' (Copy)',
-                isCollapsed: false
-            };
-            blocks.splice(index + 1, 0, copy);
-            logSystemEvent(`Duplicated "${original.name}" block.`);
-            renderBlocks();
-        }
+    // ==========================================================================
+    // Export, Import & Reset Configuration Actions
+    // ==========================================================================
+
+    $('#exportSettingsBtn').on('click', function() {
+        syncUItoConfig();
+        const cfg = window.ConverterConfig.get();
+        window.ConverterStorage.exportToFile(cfg, 'settings.json');
+        logSystemEvent('Exported configuration to settings.json.', 'success');
     });
 
-    // Move Block Up
-    $(document).on('click', '.move-up-btn', function(e) {
-        e.stopPropagation();
-        const id = $(this).closest('.structure-block').data('id');
-        const block = blocks.find(b => b.id === id);
-        if (block) {
-            const index = blocks.indexOf(block);
-            if (index > 0) {
-                // Swap
-                blocks[index] = blocks[index - 1];
-                blocks[index - 1] = block;
-                renderBlocks();
+    $('#importSettingsFile').on('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        window.ConverterStorage.importFromFile(file, function(err, importedConfig) {
+            if (err || !importedConfig) {
+                alert('Invalid settings JSON file.');
+                logSystemEvent('Failed to import configuration: Invalid JSON.', 'warning');
+                return;
             }
-        }
+
+            window.ConverterConfig.set(importedConfig);
+            window.ConverterStorage.save(importedConfig);
+            populateUIFromConfig();
+            logSystemEvent(`Successfully imported configuration from "${file.name}".`, 'success');
+            $('#importSettingsFile').val('');
+        });
     });
 
-    // Move Block Down
-    $(document).on('click', '.move-down-btn', function(e) {
-        e.stopPropagation();
-        const id = $(this).closest('.structure-block').data('id');
-        const block = blocks.find(b => b.id === id);
-        if (block) {
-            const index = blocks.indexOf(block);
-            if (index < blocks.length - 1) {
-                // Swap
-                blocks[index] = blocks[index + 1];
-                blocks[index + 1] = block;
-                renderBlocks();
-            }
-        }
-    });
-
-    // Update block title on input change
-    $(document).on('input', '.block-name-input', function() {
-        const id = $(this).closest('.structure-block').data('id');
-        const block = blocks.find(b => b.id === id);
-        if (block) {
-            block.name = $(this).val();
-        }
-    });
-
-    // Update block match type select change
-    $(document).on('change', '.block-type-select', function() {
-        const id = $(this).closest('.structure-block').data('id');
-        const block = blocks.find(b => b.id === id);
-        if (block) {
-            block.type = $(this).val();
-            // Load standard templates for chosen type if empty
-            if (block.type === 'table' && !block.template.includes('{{table}}')) {
-                block.template = `<div class="table-responsive my-3">\n    <table class="table table-bordered align-middle">\n        {{table}}\n    </table>\n</div>`;
-            } else if (block.type === 'list' && !block.template.includes('{{list}}')) {
-                block.template = `<ul class="custom-list my-3">\n    {{list}}\n</ul>`;
-            } else if (block.type === 'image' && !block.template.includes('{{image}}')) {
-                block.template = `<div class="image-wrapper text-center my-4">\n    {{image}}\n</div>`;
-            }
-            renderBlocks();
-        }
-    });
-
-    // Update block template code textarea change
-    $(document).on('input', '.block-template-textarea', function() {
-        const id = $(this).closest('.structure-block').data('id');
-        const block = blocks.find(b => b.id === id);
-        if (block) {
-            block.template = $(this).val();
+    $('#resetSettingsBtn').on('click', function() {
+        if (confirm('Are you sure you want to reset all configurations to default settings?')) {
+            window.ConverterConfig.reset();
+            window.ConverterStorage.clear();
+            $('#cfgBulkLinks').val('');
+            populateUIFromConfig();
+            logSystemEvent('Reset configuration to default settings.', 'info');
         }
     });
 
     // ==========================================================================
-    // File Upload & Drag and Drop Events
+    // Multi-File Upload & Per-File Hyperlinks Modal Events
     // ==========================================================================
+
     const $dropzone = $('#dropzone');
     const $wordFileInput = $('#wordFileInput');
 
-    // Drag events
     $dropzone.on('dragover dragenter', function(e) {
         e.preventDefault();
         e.stopPropagation();
@@ -310,735 +414,335 @@ $(document).ready(function() {
 
     $dropzone.on('drop', function(e) {
         const files = e.originalEvent.dataTransfer.files;
-        if (files.length > 0) {
-            handleSelectedFile(files[0]);
-        }
+        if (files && files.length > 0) handleSelectedFiles(Array.from(files));
     });
 
     $wordFileInput.on('change', function(e) {
         const files = e.target.files;
-        if (files.length > 0) {
-            handleSelectedFile(files[0]);
+        if (files && files.length > 0) handleSelectedFiles(Array.from(files));
+    });
+
+    function handleSelectedFiles(fileList) {
+        const docxFiles = fileList.filter(f => f.name.toLowerCase().endsWith('.docx'));
+        if (docxFiles.length === 0) {
+            alert('Please select valid Microsoft Word document (.docx) files.');
+            logSystemEvent('Error: Selected files contain no .docx documents.', 'warning');
+            return;
+        }
+
+        uploadedFiles = docxFiles.map(f => ({
+            file: f,
+            name: f.name,
+            bulkLinksText: '',
+            caseSensitive: false,
+            boldOnly: true,
+            parsedRules: [],
+            formattedHtml: ''
+        }));
+        activeFileIndex = 0;
+
+        renderUploadedFileBadges();
+        logSystemEvent(`Selected ${uploadedFiles.length} Word document(s) for batch conversion.`);
+    }
+
+    function renderUploadedFileBadges() {
+        const $badges = $('#fileBadgesContainer');
+        $badges.empty();
+
+        if (uploadedFiles.length === 0) {
+            $('#fileInfoContainer').removeClass('d-flex').addClass('d-none');
+            return;
+        }
+
+        $('#uploadedFilesSummary').text(`Uploaded Files (${uploadedFiles.length})`);
+        $('#fileInfoContainer').removeClass('d-none').addClass('d-flex');
+
+        uploadedFiles.forEach((item, idx) => {
+            const count = item.parsedRules ? item.parsedRules.length : 0;
+            const badgeHtml = `
+                <div class="file-item-card d-flex align-items-center justify-content-between p-2 mb-2 bg-white border rounded-3 w-100 shadow-xs">
+                    <div class="d-flex align-items-center gap-2 overflow-hidden me-2">
+                        <i class="bi bi-file-earmark-word-fill text-primary fs-5 flex-shrink-0"></i>
+                        <div>
+                            <div class="fw-semibold small text-body text-truncate" style="max-width: 260px;" title="${item.name}">${item.name}</div>
+                            <div class="text-muted extra-small">${(item.file.size / 1024).toFixed(1)} KB</div>
+                        </div>
+                    </div>
+                    <div class="d-flex align-items-center gap-2">
+                        <button type="button" class="btn btn-sm ${count > 0 ? 'btn-primary' : 'btn-outline-primary'} open-file-links-btn d-flex align-items-center gap-1 py-1 px-2" data-idx="${idx}">
+                            <i class="bi bi-link-45deg"></i>
+                            <span>Hyperlinks</span>
+                            <span class="badge ${count > 0 ? 'bg-white text-primary' : 'bg-primary text-white'} rounded-pill ms-1">${count}</span>
+                        </button>
+                        <button type="button" class="btn-close remove-single-file" data-idx="${idx}" aria-label="Remove"></button>
+                    </div>
+                </div>
+            `;
+            $badges.append(badgeHtml);
+        });
+    }
+
+    // Open Dedicated Per-File Links Modal
+    $(document).on('click', '.open-file-links-btn', function(e) {
+        e.stopPropagation();
+        editingFileIdx = $(this).data('idx');
+        const item = uploadedFiles[editingFileIdx];
+        if (!item) return;
+
+        $('#modalFileName').text(item.name);
+        $('#modalBulkLinksTextarea').val(item.bulkLinksText || '');
+        $('#modalCaseSensitive').prop('checked', !!item.caseSensitive);
+        $('#modalBoldOnly').prop('checked', item.boldOnly !== undefined ? !!item.boldOnly : true);
+
+        const fileModal = bootstrap.Modal.getOrCreateInstance('#fileLinksModal');
+        fileModal.show();
+    });
+
+    // Save Dedicated Per-File Links
+    $('#saveFileLinksBtn').on('click', function() {
+        if (editingFileIdx === null || !uploadedFiles[editingFileIdx]) return;
+        const item = uploadedFiles[editingFileIdx];
+
+        item.bulkLinksText = $('#modalBulkLinksTextarea').val() || '';
+        item.caseSensitive = $('#modalCaseSensitive').is(':checked');
+        item.boldOnly = $('#modalBoldOnly').is(':checked');
+
+        // Parse per-file bulk links text (supports >>, ||, :)
+        item.parsedRules = parseBulkLinksText(item.bulkLinksText, item.caseSensitive, item.boldOnly);
+
+        renderUploadedFileBadges();
+        logSystemEvent(`Updated ${item.parsedRules.length} hyperlink rule(s) for "${item.name}".`, 'success');
+
+        const fileModal = bootstrap.Modal.getInstance('#fileLinksModal');
+        if (fileModal) fileModal.hide();
+    });
+
+    $(document).on('click', '.remove-single-file', function(e) {
+        e.stopPropagation();
+        const idx = $(this).data('idx');
+        uploadedFiles.splice(idx, 1);
+        if (activeFileIndex >= uploadedFiles.length) {
+            activeFileIndex = Math.max(0, uploadedFiles.length - 1);
+        }
+        renderUploadedFileBadges();
+        if (uploadedFiles.length === 0) {
+            clearOutputs();
         }
     });
 
-    function handleSelectedFile(file) {
-        // Validate extension
-        if (!file.name.endsWith('.docx')) {
-            alert('Please select a valid Word document file (.docx)');
-            logSystemEvent('Error: Selected file is not a .docx document.', 'warning');
-            return;
-        }
-        
-        currentFile = file;
-        
-        // Show file details
-        $('#selectedFilename').text(file.name);
-        $('#fileInfoContainer').removeClass('d-none').addClass('d-flex');
-        
-        logSystemEvent(`File selected: "${file.name}" (${(file.size / 1024).toFixed(1)} KB).`);
-    }
-
-    // Clear File button
     $('#clearFileButton').on('click', function() {
-        currentFile = null;
+        uploadedFiles = [];
+        activeFileIndex = 0;
         $wordFileInput.val('');
-        $('#fileInfoContainer').removeClass('d-flex').addClass('d-none');
-        
-        // Clear outputs
+        renderUploadedFileBadges();
         clearOutputs();
-        logSystemEvent('Cleared current document file.');
+        logSystemEvent('Cleared all uploaded files.');
     });
 
     function clearOutputs() {
-        convertedHtml = '';
         $('#htmlOutputCode').text('<!-- Converted output will display here -->');
-        Prism.highlightElement(document.getElementById('htmlOutputCode'));
-        
-        // Reset iframe preview
+        if (typeof Prism !== 'undefined') {
+            Prism.highlightElement(document.getElementById('htmlOutputCode'));
+        }
+
         const iframe = document.getElementById('previewIframe');
         const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
         iframeDoc.open();
         iframeDoc.write('');
         iframeDoc.close();
-        
         $('#previewEmptyState').removeClass('d-none').addClass('d-flex');
+
+        $('#convertedFileSelect').addClass('d-none').empty();
+        $('#downloadZipButton').addClass('d-none');
+        $('#activeFilenameLabel').text('output.html');
     }
 
     // ==========================================================================
-    // Conversion Settings Actions
+    // Document Batch Conversion Execution
     // ==========================================================================
-    $('#saveSettingsBtn').on('click', function() {
-        settings.wrapper = $('#settingWrapper').val();
-        settings.cleanEmptyParagraphs = $('#cleanEmptyParagraphs').is(':checked');
-        settings.cleanWordClasses = $('#cleanWordClasses').is(':checked');
-        settings.cleanInlineStyles = $('#cleanInlineStyles').is(':checked');
-        settings.styleMap = $('#settingStyleMap').val();
-        
-        logSystemEvent('Global conversion settings updated.');
-    });
 
-    // ==========================================================================
-    // Main Document Converter Logic
-    // ==========================================================================
-    
     $('#convertButton').on('click', function() {
-        if (!currentFile) {
-            alert('Please upload a Microsoft Word document (.docx) first.');
+        if (!uploadedFiles || uploadedFiles.length === 0) {
+            alert('Please upload at least one Microsoft Word document (.docx).');
             return;
         }
-        
-        logSystemEvent('Starting Word conversion process...', 'info');
-        
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            const arrayBuffer = e.target.result;
-            
-            // Build Mammoth Options
-            const options = {};
-            
-            // Add custom style mappings if defined
-            if (settings.styleMap.trim()) {
-                options.styleMap = settings.styleMap.split('\n').filter(line => line.trim());
-                logSystemEvent('Loaded custom style mappings.', 'info');
-            }
-            
-            // Convert to HTML
-            mammoth.convertToHtml({ arrayBuffer: arrayBuffer }, options)
-                .then(function(result) {
-                    const rawHtml = result.value;
-                    const messages = result.messages;
-                    
-                    // Log mammoth warning logs if any
-                    messages.forEach(msg => {
-                        logConversionEvent(`[MAMMOTH] ${msg.type}: ${msg.message}`, 'warning');
-                    });
-                    
-                    // Process and segment the parsed HTML content
-                    processRawHtml(rawHtml);
-                })
-                .catch(function(err) {
-                    console.error(err);
-                    logSystemEvent(`Conversion crashed: ${err.message}`, 'warning');
-                    alert('An error occurred during Word document conversion. See console logs for details.');
+
+        syncUItoConfig();
+        const activeConfig = window.ConverterConfig.get();
+        logSystemEvent(`Starting batch conversion for ${uploadedFiles.length} document(s)...`, 'info');
+
+        let completedCount = 0;
+
+        uploadedFiles.forEach((fileItem) => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const arrayBuffer = e.target.result;
+
+                window.ConverterParser.parseDocument(arrayBuffer, {}, function(err, result) {
+                    if (err) {
+                        console.error(err);
+                        logSystemEvent(`Failed converting "${fileItem.name}": ${err.message}`, 'warning');
+                        completedCount++;
+                        return;
+                    }
+
+                    // Create file-specific configuration by combining Global Links + File Specific Links
+                    const fileConfig = JSON.parse(JSON.stringify(activeConfig));
+                    fileConfig.links = [
+                        ...(activeConfig.links || []),
+                        ...(fileItem.parsedRules || [])
+                    ];
+
+                    // Generate HTML according to configuration
+                    const rawGenerated = window.ConverterGenerator.generate(result.domTree, fileConfig);
+
+                    // Format generated HTML cleanly
+                    fileItem.formattedHtml = window.ConverterFormatter.formatHtml(rawGenerated, 4);
+                    completedCount++;
+
+                    logSystemEvent(`Finished converting "${fileItem.name}".`, 'success');
+
+                    if (completedCount === uploadedFiles.length) {
+                        onBatchConversionComplete();
+                    }
                 });
-        };
-        
-        reader.readAsArrayBuffer(currentFile);
+            };
+            reader.readAsArrayBuffer(fileItem.file);
+        });
     });
 
-    // Parse raw HTML, clean elements, group into structures, and build template output
-    function processRawHtml(rawHtml) {
-        logSystemEvent('HTML structure extraction initiated.', 'info');
-        
-        // Load into DOMParser
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(rawHtml, 'text/html');
-        const body = doc.body;
-        
-        // Apply Element Cleaning Rules (inline styles, word styling classes, empty paragraphs)
-        cleanDomTree(body);
-        
-        // Segment children elements into contiguous logical groups mapped to sections
-        const childNodes = Array.from(body.children);
-        const sections = [];
-        let currentSection = null;
-        
-        childNodes.forEach(el => {
-            const tagName = el.tagName.toUpperCase();
-            
-            // Check if it's a heading element (H1 - H6) which starts a new parent card section
-            if (tagName.match(/^H[1-6]$/)) {
-                if (currentSection) {
-                    sections.push(currentSection);
-                }
-                currentSection = {
-                    heading: el,
-                    children: []
-                };
-                logConversionEvent(`Heading detected: "${el.textContent.substring(0, 30)}${el.textContent.length > 30 ? '...' : ''}"`, 'info');
-            } 
-            // Sub-elements under a heading or at the root level
-            else {
-                if (!currentSection) {
-                    // Create a root-level section if no heading was encountered yet
-                    currentSection = {
-                        heading: null,
-                        children: []
-                    };
-                }
-                
-                // Identify the specific tag type and group accordingly
-                if (tagName === 'TABLE') {
-                    currentSection.children.push({
-                        type: 'table',
-                        element: el
-                    });
-                    logConversionEvent('Table converted', 'success');
-                } 
-                else if (tagName === 'UL' || tagName === 'OL') {
-                    currentSection.children.push({
-                        type: 'list',
-                        element: el
-                    });
-                    logConversionEvent('List converted', 'success');
-                } 
-                else if (tagName === 'IMG') {
-                    currentSection.children.push({
-                        type: 'image',
-                        element: el
-                    });
-                    logConversionEvent('Image converted', 'success');
-                } 
-                else if (tagName === 'P' && el.children.length === 1 && el.children[0].tagName.toUpperCase() === 'IMG') {
-                    currentSection.children.push({
-                        type: 'image',
-                        element: el.children[0]
-                    });
-                    logConversionEvent('Image converted', 'success');
-                } 
-                else {
-                    // Text Paragraph Content
-                    const text = el.textContent.trim();
-                    const hasImg = el.getElementsByTagName('img').length > 0;
-                    
-                    if (tagName === 'P' && text === '' && !hasImg && settings.cleanEmptyParagraphs) {
-                        logConversionEvent('Paragraph skipped: empty content', 'warning');
-                    } else {
-                        // Check if the last item in children is already a content block so we group text paragraphs
-                        let lastChild = currentSection.children[currentSection.children.length - 1];
-                        if (lastChild && lastChild.type === 'content') {
-                            lastChild.paragraphs.push(el);
-                        } else {
-                            currentSection.children.push({
-                                type: 'content',
-                                paragraphs: [el]
-                            });
-                        }
-                        logConversionEvent('Paragraph detected', 'info');
-                    }
-                }
-            }
-        });
-        
-        // Push the final section
-        if (currentSection) {
-            sections.push(currentSection);
-        }
-        
-        // Process final template block assembly
-        assembleTemplateBlocks(sections);
-    }
+    function onBatchConversionComplete() {
+        logSystemEvent(`Batch conversion completed successfully! (${uploadedFiles.length} file(s) ready).`, 'success');
 
-    // Clean DOM tree recursively based on rules
-    function cleanDomTree(parentEl) {
-        const children = Array.from(parentEl.children);
-        
-        children.forEach(el => {
-            // Detect if a paragraph is styled as a heading (fully bold, short, no ending period)
-            if (el.tagName.toUpperCase() === 'P') {
-                const text = el.textContent.trim();
-                const childNodes = Array.from(el.childNodes);
-                
-                const isSingleBoldChild = el.children.length === 1 && 
-                    (el.children[0].tagName.toUpperCase() === 'STRONG' || el.children[0].tagName.toUpperCase() === 'B');
-                
-                const isFullyBold = isSingleBoldChild || 
-                    (childNodes.length === 1 && childNodes[0].nodeType === Node.ELEMENT_NODE && 
-                     (childNodes[0].tagName.toUpperCase() === 'STRONG' || childNodes[0].tagName.toUpperCase() === 'B'));
+        // Setup File Selector Dropdown if multiple files exist
+        const $fileSelect = $('#convertedFileSelect');
+        $fileSelect.empty();
 
-                if (isFullyBold && text.length > 0 && text.length < 80) {
-                    if (!text.endsWith('.')) {
-                        logConversionEvent(`Detected paragraph styled as heading: "${text}" - converting to Heading`, 'info');
-                        const hTag = document.createElement('h3');
-                        hTag.innerHTML = el.querySelector('strong, b').innerHTML;
-                        el.parentNode.replaceChild(hTag, el);
-                        el = hTag; // Use the new heading element reference
-                    }
-                }
-            }
-
-            // Clean attributes
-            if (settings.cleanInlineStyles) {
-                el.removeAttribute('style');
-            }
-            
-            if (settings.cleanWordClasses) {
-                // Strip class names that typically match Word formats (e.g. MS Word export lists, font types)
-                el.removeAttribute('class');
-            }
-            
-            // Clean children recursively
-            cleanDomTree(el);
-            
-            // Post-cleaning checks: remove empty paragraphs
-            if (settings.cleanEmptyParagraphs && el.tagName.toUpperCase() === 'P') {
-                if (el.textContent.trim() === '' && el.getElementsByTagName('img').length === 0) {
-                    el.remove();
-                }
-            }
-        });
-    }
-
-    // Merge HTML templates and replacement properties
-    function assembleTemplateBlocks(sections) {
-        logSystemEvent('Applying block-based templates...', 'info');
-        
-        let finalHtmlList = [];
-        
-        // Helper to select the best template block match based on section elements
-        function findBestBlock(type, hasParagraph) {
-            const matches = blocks.filter(b => b.type === type);
-            if (matches.length === 0) return null;
-            if (matches.length === 1) return matches[0];
-            
-            // Prioritize block templates based on paragraph placeholders
-            if (hasParagraph) {
-                const withPara = matches.find(b => b.template.includes('{{paragraph}}'));
-                if (withPara) return withPara;
-            } else {
-                const withoutPara = matches.find(b => !b.template.includes('{{paragraph}}'));
-                if (withoutPara) return withoutPara;
-            }
-            
-            return matches[0];
-        }
-
-        sections.forEach(section => {
-            // Case 1: Root-level elements (no parent heading) -> Output outside at root
-            if (!section.heading) {
-                section.children.forEach(child => {
-                    const html = compileStandaloneChild(child);
-                    if (html) finalHtmlList.push(html);
-                });
-                return;
-            }
-            
-            // Case 2: Element falls under a parent heading -> Nest inside parent card
-            // Determine primary section type: table, list, image, or standard content
-            let sectionType = 'content';
-            let tableEl = null;
-            let listEl = null;
-            let imageEl = null;
-            
-            section.children.forEach(child => {
-                if (child.type === 'table' && !tableEl) {
-                    tableEl = child.element;
-                    sectionType = 'table';
-                } else if (child.type === 'list' && !listEl) {
-                    listEl = child.element;
-                    if (sectionType === 'content') sectionType = 'list';
-                } else if (child.type === 'image' && !imageEl) {
-                    imageEl = child.element;
-                    if (sectionType === 'content') sectionType = 'image';
-                }
+        if (uploadedFiles.length > 1) {
+            uploadedFiles.forEach((item, idx) => {
+                const outName = item.name.replace(/\.docx$/i, '.html');
+                $fileSelect.append(`<option value="${idx}">${outName}</option>`);
             });
-            
-            // Collect paragraph contents in this section
-            const paragraphs = [];
-            section.children.forEach(child => {
-                if (child.type === 'content') {
-                    child.paragraphs.forEach(p => paragraphs.push(p.innerHTML));
-                }
-            });
-            
-            const hasParagraph = paragraphs.length > 0;
-            
-            // Find active template block defined by user that matches the content type
-            const matchedBlock = findBestBlock(sectionType, hasParagraph);
-            
-            if (!matchedBlock) {
-                // Fallback: output raw elements
-                finalHtmlList.push(section.heading.outerHTML);
-                section.children.forEach(child => {
-                    const html = compileStandaloneChild(child);
-                    if (html) finalHtmlList.push(html);
-                });
-                return;
-            }
-            
-            let templateMarkup = matchedBlock.template;
-            const headingHtml = section.heading.innerHTML;
-            
-            // Determine what elements are consumed by the template block BEFORE placeholder replacement
-            const paragraphConsumed = templateMarkup.includes('{{paragraph}}');
-            const tableConsumed = templateMarkup.includes('{{table}}');
-            const listConsumed = templateMarkup.includes('{{list}}');
-            const imageConsumed = templateMarkup.includes('{{image}}');
-            
-            // Substitute heading in template block
-            templateMarkup = templateMarkup.replace(/\{\{heading\}\}/g, headingHtml);
-            
-            // Smart paragraph substitution: output individual <p> tags
-            if (paragraphConsumed) {
-                // Check if wrapped in a p tag with optional attributes (e.g., <p class="lead">{{paragraph}}</p>)
-                const pTagRegex = /<p([^>]*)>\s*\{\{paragraph\}\}\s*<\/p>/;
-                const match = templateMarkup.match(pTagRegex);
-                
-                if (match) {
-                    const attrs = match[1]; // Extract attributes (e.g. ' class="lead"')
-                    const styledParagraphsHtml = paragraphs.map(pText => `<p${attrs}>${pText}</p>`).join('\n');
-                    templateMarkup = templateMarkup.replace(pTagRegex, styledParagraphsHtml);
-                } else {
-                    const defaultParagraphsHtml = paragraphs.map(pText => `<p>${pText}</p>`).join('\n');
-                    templateMarkup = templateMarkup.replace(/\{\{paragraph\}\}/g, defaultParagraphsHtml);
-                }
-            }
-            
-            if (sectionType === 'table' && tableEl) {
-                templateMarkup = templateMarkup.replace(/\{\{table\}\}/g, tableEl.innerHTML);
-            }
-            else if (sectionType === 'list' && listEl) {
-                const listInner = listEl.innerHTML;
-                // Handle nested <li> items in user's templates safely
-                templateMarkup = templateMarkup.replace(/<li>\s*\{\{list\}\}\s*<\/li>/g, listInner);
-                templateMarkup = templateMarkup.replace(/\{\{list\}\}/g, listInner);
-            }
-            else if (sectionType === 'image' && imageEl) {
-                templateMarkup = templateMarkup.replace(/\{\{image\}\}/g, imageEl.outerHTML);
-            }
-            
-            // Gather any unconsumed elements in the section to append at the bottom
-            let otherChildren = [];
-            
-            section.children.forEach(child => {
-                if (child.type === 'table') {
-                    if (!tableConsumed) {
-                        otherChildren.push(child);
-                    }
-                } else if (child.type === 'list') {
-                    if (!listConsumed) {
-                        otherChildren.push(child);
-                    }
-                } else if (child.type === 'image') {
-                    if (!imageConsumed) {
-                        otherChildren.push(child);
-                    }
-                } else if (child.type === 'content') {
-                    if (!paragraphConsumed) {
-                        otherChildren.push(child);
-                    }
-                }
-            });
-            
-            // Clean empty HTML tags inside template block
-            templateMarkup = cleanEmptyTags(templateMarkup);
-            
-            // Append any other children that weren't the primary type (e.g. follow-up elements)
-            if (otherChildren.length > 0) {
-                const parser = new DOMParser();
-                const parentDoc = parser.parseFromString(templateMarkup, 'text/html');
-                const parentContainer = parentDoc.body.firstElementChild;
-                
-                if (parentContainer) {
-                    otherChildren.forEach(child => {
-                        const childHtml = compileStandaloneChild(child);
-                        if (childHtml) {
-                            const childDoc = parser.parseFromString(childHtml, 'text/html');
-                            const nodes = Array.from(childDoc.body.childNodes);
-                            nodes.forEach(node => {
-                                parentContainer.appendChild(node);
-                            });
-                        }
-                    });
-                    templateMarkup = parentDoc.body.innerHTML;
-                } else {
-                    otherChildren.forEach(child => {
-                        const childHtml = compileStandaloneChild(child);
-                        if (childHtml) {
-                            templateMarkup += '\n' + childHtml;
-                        }
-                    });
-                }
-            }
-            
-            finalHtmlList.push(templateMarkup);
-        });
-        
-        // Helper to compile standalone elements
-        function compileStandaloneChild(child) {
-            if (child.type === 'content') {
-                return child.paragraphs.map(p => p.outerHTML).join('\n');
-            }
-            
-            const matchedBlock = findBestBlock(child.type, false);
-            if (!matchedBlock) {
-                return child.element.outerHTML;
-            }
-            
-            let templateMarkup = matchedBlock.template;
-            
-            if (child.type === 'table') {
-                templateMarkup = templateMarkup.replace(/\{\{table\}\}/g, child.element.innerHTML);
-            }
-            else if (child.type === 'list') {
-                const listInner = child.element.innerHTML;
-                templateMarkup = templateMarkup.replace(/<li>\s*\{\{list\}\}\s*<\/li>/g, listInner);
-                templateMarkup = templateMarkup.replace(/\{\{list\}\}/g, listInner);
-            }
-            else if (child.type === 'image') {
-                templateMarkup = templateMarkup.replace(/\{\{image\}\}/g, child.element.outerHTML);
-            }
-            
-            return cleanEmptyTags(templateMarkup);
+            $fileSelect.removeClass('d-none');
+            $('#downloadZipButton').removeClass('d-none');
+        } else {
+            $fileSelect.addClass('d-none');
+            $('#downloadZipButton').addClass('d-none');
         }
 
-        // Recursively clean empty formatting and layout tags from generated HTML
-        function cleanEmptyTags(htmlString) {
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(htmlString, 'text/html');
-            const body = doc.body;
-            
-            const selectors = 'p, h1, h2, h3, h4, h5, h6, ul, ol, span, strong, em';
-            let removedAny = true;
-            
-            while (removedAny) {
-                removedAny = false;
-                body.querySelectorAll(selectors).forEach(el => {
-                    const isEmptyText = el.textContent.trim() === '';
-                    const hasNoElements = el.children.length === 0;
-                    if (isEmptyText && hasNoElements) {
-                        el.remove();
-                        removedAny = true;
-                    }
-                });
-            }
-            
-            return body.innerHTML;
-        }
+        activeFileIndex = 0;
+        updateActiveFileView();
 
-        const combinedBlocks = finalHtmlList.join('\n\n');
-        
-        // Wrap final blocks depending on layout settings selection
-        if (settings.wrapper === 'html5') {
-            convertedHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${currentFile ? currentFile.name.replace('.docx', '') : 'Converted Document'}</title>
-    <style>
-        body {
-            font-family: 'Inter', system-ui, sans-serif;
-            line-height: 1.6;
-            color: #212529;
-            max-width: 800px;
-            margin: 40px auto;
-            padding: 0 20px;
-        }
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        table, th, td {
-            border: 1px solid #dee2e6;
-        }
-        th, td {
-            padding: 12px;
-            text-align: left;
-        }
-        img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-        }
-        .custom-list {
-            padding-left: 20px;
-            margin: 16px 0;
-        }
-        .custom-list li {
-            margin-bottom: 8px;
-        }
-    </style>
-</head>
-<body>
-${combinedBlocks}
-</body>
-</html>`;
-        } 
-        else if (settings.wrapper === 'bootstrap5') {
-            convertedHtml = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${currentFile ? currentFile.name.replace('.docx', '') : 'Converted Document'}</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .custom-list {
-            padding-left: 20px;
-            margin: 16px 0;
-        }
-        .custom-list li {
-            margin-bottom: 8px;
-        }
-    </style>
-</head>
-<body class="py-5">
-    <div class="container bg-white p-5 rounded shadow-sm" style="max-width: 900px;">
-        ${combinedBlocks}
-    </div>
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>`;
-        } 
-        else {
-            convertedHtml = combinedBlocks;
-        }
-        
-        // Write outputs
-        renderOutputPreview();
-        renderOutputCode();
-        
-        logSystemEvent('Conversion completed successfully!', 'success');
-        
-        // Switch tab to Live Preview
+        $('#previewEmptyState').addClass('d-none').removeClass('d-flex');
         $('#preview-tab').tab('show');
     }
 
-    // Renders Preview frame inside sandbox IFrame
-    function renderOutputPreview() {
-        $('#previewEmptyState').addClass('d-none').removeClass('d-flex');
-        
-        const iframe = document.getElementById('previewIframe');
-        const iframeDoc = iframe.contentDocument || iframe.contentWindow.document;
-        iframeDoc.open();
-        
-        // Write content
-        if (settings.wrapper === 'none') {
-            iframeDoc.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <style>
-                        body {
-                            font-family: 'Inter', system-ui, sans-serif;
-                            padding: 20px;
-                            color: #212529;
-                            line-height: 1.5;
-                        }
-                        img { max-width: 100%; height: auto; display: block; margin: 0 auto;}
-                        table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-                        table, th, td { border: 1px solid #dee2e6; }
-                        th, td { padding: 8px; text-align: left; }
-                        .custom-list { padding-left: 20px; }
-                    </style>
-                </head>
-                <body>
-                    ${convertedHtml}
-                </body>
-                </html>
-            `);
-        } else {
-            iframeDoc.write(convertedHtml);
-        }
-        iframeDoc.close();
+    function updateActiveFileView() {
+        const currentItem = uploadedFiles[activeFileIndex];
+        if (!currentItem || !currentItem.formattedHtml) return;
+
+        const outName = currentItem.name.replace(/\.docx$/i, '.html');
+        $('#activeFilenameLabel').text(outName);
+        $('#convertedFileSelect').val(activeFileIndex);
+
+        window.ConverterPreview.updatePreviewFrame('previewIframe', currentItem.formattedHtml);
+        window.ConverterPreview.renderCodeOutput('htmlOutputCode', currentItem.formattedHtml);
     }
 
-    // Encodes characters safely and inserts formatted syntax highlight
-    function renderOutputCode() {
-        const escapeHtml = (text) => {
-            return text
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        };
-
-        const $code = $('#htmlOutputCode');
-        $code.html(escapeHtml(convertedHtml));
-        Prism.highlightElement(document.getElementById('htmlOutputCode'));
-    }
-
-    // Refresh Live Preview action
-    $('#refreshPreview').on('click', function() {
-        if (convertedHtml) {
-            renderOutputPreview();
-            logSystemEvent('Refreshed iframe preview viewport.');
-        }
+    $('#convertedFileSelect').on('change', function() {
+        activeFileIndex = parseInt($(this).val(), 10) || 0;
+        updateActiveFileView();
     });
 
-    // ==========================================================================
-    // Clipboard Copy & File Download triggers
-    // ==========================================================================
-    
-    // Copy HTML to Clipboard
+    // Refresh Live Preview
+    $('#refreshPreview').on('click', function() {
+        updateActiveFileView();
+        logSystemEvent('Refreshed iframe preview.');
+    });
+
+    // Copy Current HTML to Clipboard
     $('#copyHtmlButton').on('click', function() {
-        if (!convertedHtml) {
+        const currentItem = uploadedFiles[activeFileIndex];
+        if (!currentItem || !currentItem.formattedHtml) {
             alert('No converted HTML available to copy. Please run conversion.');
             return;
         }
-        
-        navigator.clipboard.writeText(convertedHtml)
-            .then(() => {
-                const $btn = $(this);
+
+        window.ConverterPreview.copyToClipboard(
+            currentItem.formattedHtml,
+            function() {
+                const $btn = $('#copyHtmlButton');
                 const originalHtml = $btn.html();
                 $btn.html('<i class="bi bi-check-lg"></i> <span>Copied!</span>');
                 $btn.removeClass('btn-dark').addClass('btn-success');
-                
-                logSystemEvent('Copied output HTML code to clipboard.');
-                
+                logSystemEvent('Copied active HTML to clipboard.');
                 setTimeout(() => {
                     $btn.html(originalHtml);
                     $btn.removeClass('btn-success').addClass('btn-dark');
                 }, 2000);
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Could not copy text to clipboard.');
-            });
+            },
+            function(err) {
+                alert('Failed to copy HTML to clipboard.');
+            }
+        );
     });
 
-    // Download HTML File
+    // Download Single HTML File
     $('#downloadHtmlButton').on('click', function() {
-        if (!convertedHtml) {
+        const currentItem = uploadedFiles[activeFileIndex];
+        if (!currentItem || !currentItem.formattedHtml) {
             alert('No converted HTML available to download. Please run conversion.');
             return;
         }
-        
-        const blob = new Blob([convertedHtml], { type: 'text/html;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        
-        const filename = currentFile ? currentFile.name.replace('.docx', '.html') : 'template-output.html';
-        
-        link.href = url;
-        link.setAttribute('download', filename);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        logSystemEvent(`Downloaded file: "${filename}".`);
+
+        const filename = currentItem.name.replace(/\.docx$/i, '.html');
+        window.ConverterPreview.downloadFile(currentItem.formattedHtml, filename);
+        logSystemEvent(`Downloaded output file: "${filename}".`);
+    });
+
+    // Download All Converted Files as ZIP
+    $('#downloadZipButton').on('click', function() {
+        if (!uploadedFiles || uploadedFiles.length === 0) {
+            alert('No converted files available to bundle in ZIP.');
+            return;
+        }
+
+        if (typeof JSZip === 'undefined') {
+            alert('JSZip library is missing.');
+            return;
+        }
+
+        const zip = new JSZip();
+        uploadedFiles.forEach(item => {
+            if (item.formattedHtml) {
+                const outName = item.name.replace(/\.docx$/i, '.html');
+                zip.file(outName, item.formattedHtml);
+            }
+        });
+
+        zip.generateAsync({ type: 'blob' }).then(function(content) {
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(content);
+            a.download = 'converted_html_files.zip';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            logSystemEvent(`Downloaded ${uploadedFiles.length} files as "converted_html_files.zip".`, 'success');
+        });
     });
 
     // ==========================================================================
     // Console Logs and Event Tracing
     // ==========================================================================
-    
+
     function logSystemEvent(msg, type = 'system') {
         const timestamp = new Date().toLocaleTimeString();
         const entry = `<div class="log-entry log-${type}">[${timestamp}] ${msg}</div>`;
         const $logs = $('#logsContainer');
         $logs.append(entry);
-        // Scroll logs window
-        $logs.scrollTop($logs[0].scrollHeight);
-    }
-    
-    function logConversionEvent(msg, status = 'info') {
-        const entry = `<div class="log-entry log-${status}"><i class="bi ${status === 'success' ? 'bi-check-circle-fill' : status === 'warning' ? 'bi-exclamation-triangle-fill' : 'bi-info-circle-fill'} me-2"></i>${msg}</div>`;
-        const $logs = $('#logsContainer');
-        $logs.append(entry);
         $logs.scrollTop($logs[0].scrollHeight);
     }
 
-    // Clear logs action
     $('#clearLogsButton').on('click', function() {
         $('#logsContainer').empty();
         logSystemEvent('Console cleared.');
@@ -1047,29 +751,26 @@ ${combinedBlocks}
     // ==========================================================================
     // Theme Switcher Layout Control
     // ==========================================================================
-    
+
     const $themeToggle = $('#themeToggle');
-    
-    // Check local storage for theme setting
     let savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
 
     $themeToggle.on('click', function() {
-        const currentTheme = $('html').attr('data-theme');
-        const nextTheme = currentTheme === 'dark' ? 'light' : 'dark';
-        setTheme(nextTheme);
+        savedTheme = savedTheme === 'light' ? 'dark' : 'light';
+        setTheme(savedTheme);
     });
 
     function setTheme(theme) {
-        $('html').attr('data-theme', theme);
+        document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
-        
+
         if (theme === 'dark') {
-            $themeToggle.html('<i class="bi bi-sun-fill text-warning"></i>');
-            logSystemEvent('Dark Mode theme enabled.');
+            $themeToggle.html('<i class="bi bi-sun-fill text-warning me-1"></i> Light Mode');
+            $themeToggle.removeClass('btn-outline-dark').addClass('btn-outline-light');
         } else {
-            $themeToggle.html('<i class="bi bi-moon-fill"></i>');
-            logSystemEvent('Light Mode theme enabled.');
+            $themeToggle.html('<i class="bi bi-moon-fill text-dark me-1"></i> Dark Mode');
+            $themeToggle.removeClass('btn-outline-light').addClass('btn-outline-dark');
         }
     }
 });
