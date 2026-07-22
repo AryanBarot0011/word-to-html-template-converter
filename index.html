@@ -50,8 +50,29 @@
         </div>
     </nav>
 
-    <!-- Main Dashboard Container -->
-    <main class="container-fluid px-4 py-4">
+    <!-- Top Tab bar to switch tools -->
+    <div class="bg-white border-bottom py-2">
+        <div class="container-fluid px-4">
+            <ul class="nav nav-pills gap-2" id="mainTab" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-medium px-4 py-2" id="word-tab" data-bs-toggle="tab" data-bs-target="#word-pane" type="button" role="tab" aria-controls="word-pane" aria-selected="true">
+                        <i class="bi bi-file-earmark-word-fill me-2"></i>Word to HTML Converter
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-medium px-4 py-2" id="emoji-tab" data-bs-toggle="tab" data-bs-target="#emoji-pane" type="button" role="tab" aria-controls="emoji-pane" aria-selected="false">
+                        <i class="bi bi-emoji-smile-fill me-2"></i>Emoji to Image Replacer
+                    </button>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="tab-content" id="mainTabContent">
+        <!-- Tab 1: Word to HTML Converter -->
+        <div class="tab-pane fade show active" id="word-pane" role="tabpanel" aria-labelledby="word-tab">
+            <!-- Main Dashboard Container -->
+            <main class="container-fluid px-4 py-4">
         <div class="row g-4">
             
             <!-- Left Column: Input & Configuration Panel -->
@@ -601,6 +622,229 @@
 
         </div>
     </main>
+    </div> <!-- /#word-pane -->
+
+    <!-- Tab 2: Emoji to Image Replacer -->
+    <div class="tab-pane fade" id="emoji-pane" role="tabpanel" aria-labelledby="emoji-tab">
+        <main class="container-fluid px-4 py-4">
+            <div class="row g-4">
+                <!-- Left Column: Inputs & File List -->
+                <div class="col-xl-6 d-flex flex-column gap-3" style="max-height: calc(100vh - 180px); overflow-y: auto;">
+                    
+                    <!-- Section 1: Template Code Input -->
+                    <div class="card border-0 shadow-sm rounded-3 bg-white">
+                        <div class="card-body p-4">
+                            <h2 class="h5 fw-semibold mb-3">1. Paste Template Code</h2>
+                            <textarea class="form-control font-monospace p-3 small mb-3" id="emojiTemplateInput" rows="10" placeholder="Paste your HTML, PHP, or Python code here... (e.g. <div>🥺 crying</div>)"></textarea>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-muted">Or Load Template File</label>
+                                <input type="file" id="emojiTemplateFileInput" accept=".html,.php,.py,.txt,.js" class="form-control form-control-sm">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Image Assets & Base Path -->
+                    <div class="card border-0 shadow-sm rounded-3 bg-white">
+                        <div class="card-body p-4">
+                            <h2 class="h5 fw-semibold mb-3">2. Configure Image Icons</h2>
+                            
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-body mb-1">Image Folder Path in Code</label>
+                                <input type="text" class="form-control form-control-sm" id="emojiImagePathInput" value="images/icons/" placeholder="e.g. assets/images/icons/">
+                                <div class="form-text extra-small text-muted">This prefix will be prepended to the image src attributes.</div>
+                            </div>
+
+                            <div class="upload-dropzone text-center p-3 border border-2 border-dashed rounded-3 position-relative transition-all mb-3" id="emojiDropzone">
+                                <input type="file" id="emojiImageFilesInput" multiple accept="image/*" class="position-absolute top-0 start-0 w-100 h-100 opacity-0 cursor-pointer" style="z-index: 5;">
+                                <div class="upload-icon-wrapper mb-1 text-primary">
+                                    <i class="bi bi-images fs-3"></i>
+                                </div>
+                                <h3 class="h6 fw-semibold mb-1">Drag & Drop Icon Images</h3>
+                                <p class="text-muted small mb-0">or click to browse multiple icon images from your folder</p>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-body mb-1">Available Image Names (One per line)</label>
+                                <textarea class="form-control font-monospace p-3 small" id="emojiImageNamesTextarea" rows="6" placeholder="crying.png&#10;joy.png&#10;smile.svg&#10;cot.png&#10;car.png"></textarea>
+                                <div class="form-text extra-small text-muted">These are searched when matching emojis. Filenames will load here automatically when you drop/select files above.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label small fw-semibold text-body mb-1">Custom Emoji Mappings (Line-by-line: <code>Emoji : image_name</code>)</label>
+                                <textarea class="form-control font-monospace p-3 small" id="emojiCustomMappingsTextarea" rows="4" placeholder="🥺 : custom_cry.png&#10;🔥 : hot_trending.svg"></textarea>
+                                <div class="form-text extra-small text-muted">Forcing custom rules. E.g. <code>😂 : custom_laugh.png</code> will override any automated name search.</div>
+                            </div>
+
+                            <hr class="my-3">
+
+                            <div class="mb-2">
+                                <h3 class="h6 fw-semibold mb-2">Image Attributes for Replaced Tags</h3>
+                                <div class="row g-2">
+                                    <div class="col-md-6 mb-2">
+                                        <label class="form-label small text-muted mb-1">CSS Class</label>
+                                        <input type="text" class="form-control form-control-sm" id="emojiImgClassInput" value="emoji-icon" placeholder="e.g. emoji-icon img-fluid">
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <label class="form-label small text-muted mb-1">Width</label>
+                                        <input type="text" class="form-control form-control-sm" id="emojiImgWidthInput" placeholder="e.g. 24, auto">
+                                    </div>
+                                    <div class="col-md-3 mb-2">
+                                        <label class="form-label small text-muted mb-1">Height</label>
+                                        <input type="text" class="form-control form-control-sm" id="emojiImgHeightInput" placeholder="e.g. 24, auto">
+                                    </div>
+                                    <div class="col-12 mb-1">
+                                        <label class="form-label small text-muted mb-1">Custom Attributes (optional)</label>
+                                        <input type="text" class="form-control form-control-sm" id="emojiImgAttrsInput" placeholder="e.g. loading='lazy' data-type='emoji'">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Replace Action Button -->
+                    <button type="button" class="btn btn-primary btn-lg w-100 py-3 fw-semibold shadow-sm rounded-3 d-flex align-items-center justify-content-center gap-2 mb-3" id="replaceEmojiButton">
+                        <i class="bi bi-magic fs-5"></i>
+                        <span>Replace Emojis with Images</span>
+                    </button>
+                </div>
+
+                <!-- Right Column: Results & Mapping Logs -->
+                <div class="col-xl-6">
+                    <div class="card border-0 shadow-sm rounded-3 bg-white h-100 d-flex flex-column" style="min-height: 700px;">
+                        <div class="card-header bg-white border-bottom p-0">
+                            <ul class="nav nav-tabs border-0 px-4 pt-3 gap-2" id="emojiOutputTabs" role="tablist">
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link active border-0 pb-3 px-3 fw-medium d-flex align-items-center gap-2 position-relative" id="emoji-result-tab" data-bs-toggle="tab" data-bs-target="#emojiResultTabPane" type="button" role="tab" aria-controls="emojiResultTabPane" aria-selected="true">
+                                        <i class="bi bi-code-slash"></i>
+                                        <span>Processed Code</span>
+                                    </button>
+                                </li>
+                                <li class="nav-item" role="presentation">
+                                    <button class="nav-link border-0 pb-3 px-3 fw-medium d-flex align-items-center gap-2 position-relative" id="emoji-logs-tab" data-bs-toggle="tab" data-bs-target="#emojiLogsTabPane" type="button" role="tab" aria-controls="emojiLogsTabPane" aria-selected="false">
+                                        <i class="bi bi-journal-text"></i>
+                                        <span>Matching Log</span>
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div class="card-body p-4 flex-grow-1 tab-content d-flex flex-column">
+                            <!-- Subtab 1: Processed Code Output -->
+                            <div class="tab-pane fade show active" id="emojiResultTabPane" role="tabpanel" aria-labelledby="emoji-result-tab">
+                                
+                                <!-- Metrics Summary Bar -->
+                                <div class="d-none mb-3 p-3 bg-light border rounded-3" id="emojiMetricsBar">
+                                    <div class="row align-items-center justify-content-between g-2 text-center text-md-start">
+                                        <div class="col-md-3">
+                                            <span class="text-muted small d-block">TOTAL EMOJIS FOUND</span>
+                                            <span class="fs-5 fw-bold text-body" id="metricTotal">0</span>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <span class="text-muted small d-block">REPLACED WITH IMAGE</span>
+                                            <span class="fs-5 fw-bold text-success" id="metricReplaced">0</span>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <span class="text-muted small d-block">MISSING (UNMATCHED)</span>
+                                            <span class="fs-5 fw-bold text-danger" id="metricMissing">0</span>
+                                        </div>
+                                        <div class="col-md-3 text-md-end">
+                                            <span class="text-muted small d-block">MATCH ACCURACY</span>
+                                            <span class="fs-5 fw-bold text-primary" id="metricAccuracy">0%</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="code-view-container border rounded-3 overflow-hidden d-flex flex-column flex-grow-1 bg-dark h-100" style="min-height: 500px;">
+                                    <div class="code-view-header bg-dark-subtle border-bottom border-secondary-subtle px-3 py-2 d-flex justify-content-between align-items-center flex-shrink-0 text-secondary">
+                                        <span class="small font-monospace text-light-emphasis">output_template.html</span>
+                                        <div class="d-flex gap-2">
+                                            <button class="btn btn-sm btn-dark text-light border-secondary d-flex align-items-center gap-1" id="copyEmojiOutputBtn">
+                                                <i class="bi bi-clipboard"></i>
+                                                <span>Copy Code</span>
+                                            </button>
+                                            <button class="btn btn-sm btn-outline-light d-flex align-items-center gap-1" id="downloadEmojiOutputBtn">
+                                                <i class="bi bi-download"></i>
+                                                <span>Download</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="code-view-body flex-grow-1 overflow-auto position-relative" style="height: 0; min-height: 450px;">
+                                        <pre class="m-0 p-3 h-100 line-numbers"><code class="language-html" id="emojiOutputCode">&lt;!-- Processed output will display here --&gt;</code></pre>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Subtab 2: Matching Logs -->
+                            <div class="tab-pane fade" id="emojiLogsTabPane" role="tabpanel" aria-labelledby="emoji-logs-tab">
+                                <!-- Nested Sub-tabs for Replaced vs Missing Logs -->
+                                <ul class="nav nav-pills nav-fill gap-2 mb-3 bg-light p-1 rounded border" id="logSubTabs" role="tablist">
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link active py-2 fw-medium d-flex align-items-center justify-content-center gap-2" id="log-replaced-tab" data-bs-toggle="tab" data-bs-target="#logReplacedPane" type="button" role="tab" aria-controls="logReplacedPane" aria-selected="true">
+                                            <i class="bi bi-check-circle-fill text-success"></i>
+                                            <span>Replaced Emojis</span>
+                                            <span class="badge bg-success text-white rounded-pill" id="replacedCountBadge">0</span>
+                                        </button>
+                                    </li>
+                                    <li class="nav-item" role="presentation">
+                                        <button class="nav-link py-2 fw-medium d-flex align-items-center justify-content-center gap-2" id="log-missing-tab" data-bs-toggle="tab" data-bs-target="#logMissingPane" type="button" role="tab" aria-controls="logMissingPane" aria-selected="false">
+                                            <i class="bi bi-exclamation-triangle-fill text-warning"></i>
+                                            <span>Missing Emojis</span>
+                                            <span class="badge bg-warning text-dark rounded-pill" id="missingCountBadge">0</span>
+                                        </button>
+                                    </li>
+                                </ul>
+
+                                <div class="tab-content mt-2" id="logSubTabContent">
+                                    <!-- Replaced Logs Table Pane -->
+                                    <div class="tab-pane fade show active" id="logReplacedPane" role="tabpanel" aria-labelledby="log-replaced-tab">
+                                        <div class="table-responsive border rounded-3 bg-light overflow-auto" style="max-height: 480px;">
+                                            <table class="table table-hover align-middle mb-0 small">
+                                                <thead class="table-dark sticky-top">
+                                                    <tr>
+                                                        <th style="width: 70px;">Emoji</th>
+                                                        <th>Context Words Found</th>
+                                                        <th>Matched File</th>
+                                                        <th>Replacement HTML Tag</th>
+                                                        <th>Matching Rule Method</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="replacedLogTableBody">
+                                                    <tr>
+                                                        <td colspan="5" class="text-center py-4 text-muted fst-italic">No emojis matched yet. Run the replacer to see logs.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Missing Logs Table Pane -->
+                                    <div class="tab-pane fade" id="logMissingPane" role="tabpanel" aria-labelledby="log-missing-tab">
+                                        <div class="table-responsive border rounded-3 bg-light overflow-auto" style="max-height: 480px;">
+                                            <table class="table table-hover align-middle mb-0 small">
+                                                <thead class="table-dark sticky-top">
+                                                    <tr>
+                                                        <th style="width: 70px;">Emoji</th>
+                                                        <th>Context Words Searched</th>
+                                                        <th>Reason/Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="missingLogTableBody">
+                                                    <tr>
+                                                        <td colspan="3" class="text-center py-4 text-muted fst-italic">No missing emojis yet. Run the replacer to see logs.</td>
+                                                    </tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div> <!-- /#emoji-pane -->
+    </div> <!-- /#mainTabContent -->
 
     <!-- Help Modal Guide -->
     <div class="modal fade" id="helpModal" tabindex="-1" aria-labelledby="helpModalLabel" aria-hidden="true">
@@ -703,6 +947,8 @@
     <script src="js/generator.js"></script>
     <script src="js/formatter.js"></script>
     <script src="js/preview.js"></script>
+    <script src="js/emojiReplacer.js"></script>
+    <script src="js/emojiController.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
