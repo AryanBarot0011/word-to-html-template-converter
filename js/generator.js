@@ -42,25 +42,49 @@
 
             // Transform each element inside sections according to rules
             const generatedHtmlSections = sections.map(sec => {
-                const secElements = [];
-
+                let headingPartHtml = '';
                 if (sec.heading) {
                     const transformedH = ConverterGenerator.transformHeading(sec.heading, cfg);
-                    if (transformedH) secElements.push(transformedH);
+                    if (transformedH) {
+                        const hHtml = transformedH.outerHTML || '';
+                        if (cfg.wrapper && cfg.wrapper.headingParentTag && cfg.wrapper.headingParentTag.trim()) {
+                            headingPartHtml = ConverterGenerator.wrapContent(hHtml, {
+                                tag: cfg.wrapper.headingParentTag,
+                                class: cfg.wrapper.headingParentClass
+                            });
+                        } else {
+                            headingPartHtml = hHtml;
+                        }
+                    }
                 }
 
+                const transformedChildren = [];
                 sec.children.forEach(child => {
                     const transformed = ConverterGenerator.transformElement(child, cfg);
                     if (transformed) {
                         if (Array.isArray(transformed)) {
-                            secElements.push(...transformed.filter(Boolean));
+                            transformedChildren.push(...transformed.filter(Boolean));
                         } else {
-                            secElements.push(transformed);
+                            transformedChildren.push(transformed);
                         }
                     }
                 });
 
-                const sectionInnerHtml = secElements.map(el => (typeof el === 'string' ? el : el.outerHTML || '')).filter(Boolean).join('\n');
+                let contentPartHtml = '';
+                if (transformedChildren.length > 0) {
+                    const childrenInnerHtml = transformedChildren.map(el => (typeof el === 'string' ? el : el.outerHTML || '')).filter(Boolean).join('\n');
+                    if (cfg.wrapper && cfg.wrapper.contentParentTag && cfg.wrapper.contentParentTag.trim()) {
+                        contentPartHtml = ConverterGenerator.wrapContent(childrenInnerHtml, {
+                            tag: cfg.wrapper.contentParentTag,
+                            class: cfg.wrapper.contentParentClass
+                        });
+                    } else {
+                        contentPartHtml = childrenInnerHtml;
+                    }
+                }
+
+                const parts = [headingPartHtml, contentPartHtml].filter(Boolean);
+                const sectionInnerHtml = parts.join('\n');
 
                 if (cfg.wrapper && cfg.wrapper.mode === 'repeat' && cfg.wrapper.tag && cfg.wrapper.tag.trim()) {
                     return ConverterGenerator.wrapContent(sectionInnerHtml, cfg.wrapper);

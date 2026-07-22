@@ -10,7 +10,11 @@
             tag: 'div',
             class: 'blog-info-details',
             id: '',
-            attrs: ''
+            attrs: '',
+            headingParentTag: '',
+            headingParentClass: '',
+            contentParentTag: '',
+            contentParentClass: ''
         },
         headings: {
             h1: { tag: 'h1', class: 'heading' },

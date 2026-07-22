@@ -80,6 +80,10 @@ $(document).ready(function() {
             $('#cfgWrapperClass').val(cfg.wrapper.class || '');
             $('#cfgWrapperId').val(cfg.wrapper.id || '');
             $('#cfgWrapperAttrs').val(cfg.wrapper.attrs || '');
+            $('#cfgHeadingParentTag').val(cfg.wrapper.headingParentTag || '');
+            $('#cfgHeadingParentClass').val(cfg.wrapper.headingParentClass || '');
+            $('#cfgContentParentTag').val(cfg.wrapper.contentParentTag || '');
+            $('#cfgContentParentClass').val(cfg.wrapper.contentParentClass || '');
         }
 
         // 2. Headings
@@ -167,6 +171,10 @@ $(document).ready(function() {
         cfg.wrapper.class = $('#cfgWrapperClass').val().trim();
         cfg.wrapper.id = $('#cfgWrapperId').val().trim();
         cfg.wrapper.attrs = $('#cfgWrapperAttrs').val().trim();
+        cfg.wrapper.headingParentTag = $('#cfgHeadingParentTag').val().trim();
+        cfg.wrapper.headingParentClass = $('#cfgHeadingParentClass').val().trim();
+        cfg.wrapper.contentParentTag = $('#cfgContentParentTag').val().trim();
+        cfg.wrapper.contentParentClass = $('#cfgContentParentClass').val().trim();
 
         // 2. Headings
         ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].forEach(h => {
@@ -777,11 +785,11 @@ $(document).ready(function() {
         localStorage.setItem('theme', theme);
 
         if (theme === 'dark') {
-            $themeToggle.html('<i class="bi bi-sun-fill text-warning me-1"></i> Light Mode');
-            $themeToggle.removeClass('btn-outline-dark').addClass('btn-outline-light');
+            $themeToggle.html('<i class="bi bi-sun-fill text-warning fs-5"></i>');
+            $themeToggle.attr('title', 'Switch to Light Mode').attr('aria-label', 'Switch to Light Mode');
         } else {
-            $themeToggle.html('<i class="bi bi-moon-fill text-dark me-1"></i> Dark Mode');
-            $themeToggle.removeClass('btn-outline-light').addClass('btn-outline-dark');
+            $themeToggle.html('<i class="bi bi-moon-fill text-dark fs-5"></i>');
+            $themeToggle.attr('title', 'Switch to Dark Mode').attr('aria-label', 'Switch to Dark Mode');
         }
     }
 });
