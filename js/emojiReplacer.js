@@ -81,8 +81,8 @@
             const cleanLeft = stripTags(leftRaw);
             const cleanRight = stripTags(rightRaw);
 
-            // Alphanumeric and special character word matching
-            const wordRegex = /[a-zA-Z0-9%*+]+/g;
+            // Alphanumeric and special character word matching (including hyphens and underscores)
+            const wordRegex = /[a-zA-Z0-9%*+_-]+/g;
             const leftWords = (cleanLeft.match(wordRegex) || []).map(w => w.toLowerCase());
             const rightWords = (cleanRight.match(wordRegex) || []).map(w => w.toLowerCase());
 
@@ -133,14 +133,30 @@
             return matches.length > 0 ? matches[0] : null;
         },
 
+        findImageByExactMatch: function(word, imageList) {
+            if (!word) return null;
+            const target = word.toLowerCase();
+            const matches = imageList.filter(img => {
+                const baseName = img.split('.')[0].toLowerCase();
+                return baseName === target;
+            });
+            return matches.length > 0 ? matches[0] : null;
+        },
+
         findBestMatch: function(words, imageList) {
-            // 1. Try prefix search on words
+            // 1. Try exact match first
+            for (let i = 0; i < words.length; i++) {
+                const match = EmojiReplacer.findImageByExactMatch(words[i], imageList);
+                if (match) return { image: match, word: words[i], method: `Exact Match ("${words[i]}" -> ${match})` };
+            }
+
+            // 2. Try prefix search on words
             for (let i = 0; i < words.length; i++) {
                 const match = EmojiReplacer.findImageByPrefixSearch(words[i], imageList);
                 if (match) return { image: match, word: words[i], method: `Prefix Search ("${words[i].substring(0,2)}..." -> ${match})` };
             }
 
-            // 2. Try substring match on words
+            // 3. Try substring match on words
             for (let i = 0; i < words.length; i++) {
                 const match = EmojiReplacer.findImageBySubstringSearch(words[i], imageList);
                 if (match) return { image: match, word: words[i], method: `Substring Match ("${words[i]}" -> ${match})` };
@@ -222,16 +238,25 @@
 
                 // Function to try matching a candidate word (both original and cleaned)
                 const tryWordMatch = (word, label) => {
-                    // Try original first
-                    let match = EmojiReplacer.findImageByPrefixSearch(word, imageList);
+                    // 1. Try exact match first
+                    let match = EmojiReplacer.findImageByExactMatch(word, imageList);
+                    if (match) return { image: match, word: word, method: `Exact Match (${label} "${word}" -> ${match})` };
+
+                    // 2. Try original prefix search next
+                    match = EmojiReplacer.findImageByPrefixSearch(word, imageList);
                     if (match) return { image: match, word: word, method: `Prefix Search (${label} "${word}" -> ${match})` };
 
+                    // 3. Try original substring search next
                     match = EmojiReplacer.findImageBySubstringSearch(word, imageList);
                     if (match) return { image: match, word: word, method: `Substring Match (${label} "${word}" -> ${match})` };
 
                     // If special characters exist, try cleaned version
-                    const cleaned = word.replace(/[%*+]/g, '');
+                    const cleaned = word.replace(/[%*+_-]/g, '');
                     if (cleaned !== word && cleaned.length > 0) {
+                        // Try exact match on cleaned word
+                        match = EmojiReplacer.findImageByExactMatch(cleaned, imageList);
+                        if (match) return { image: match, word: cleaned, method: `Cleaned Exact Match (${label} "${cleaned}" -> ${match})` };
+
                         match = EmojiReplacer.findImageByPrefixSearch(cleaned, imageList);
                         if (match) return { image: match, word: cleaned, method: `Cleaned Prefix Search (${label} "${cleaned}" -> ${match})` };
 
@@ -281,20 +306,20 @@
 
                 if (matchResult) {
                     // Match found! Replace emoji with img tag
-                    const altText = matchResult.word;
-                    
-                    let imgClass = (imgConfig && imgConfig.class) ? imgConfig.class.trim() : 'emoji-icon';
+                    let imgClass = (imgConfig && imgConfig.class) ? imgConfig.class.trim() : '';
+                    let imgAlt = (imgConfig && imgConfig.alt) ? imgConfig.alt.trim() : '';
                     let imgWidth = (imgConfig && imgConfig.width) ? imgConfig.width.trim() : '';
                     let imgHeight = (imgConfig && imgConfig.height) ? imgConfig.height.trim() : '';
                     let imgAttrs = (imgConfig && imgConfig.attrs) ? imgConfig.attrs.trim() : '';
 
                     let attributesStr = '';
                     if (imgClass) attributesStr += ` class="${imgClass}"`;
+                    if (imgAlt) attributesStr += ` alt="${imgAlt}"`;
                     if (imgWidth) attributesStr += ` width="${imgWidth}"`;
                     if (imgHeight) attributesStr += ` height="${imgHeight}"`;
                     if (imgAttrs) attributesStr += ` ${imgAttrs}`;
 
-                    const imgTag = `<img src="${pathPrefix}${matchResult.image}" alt="${altText}"${attributesStr}>`;
+                    const imgTag = `<img src="${pathPrefix}${matchResult.image}"${attributesStr}>`;
                     
                     const leftPart = processedCode.substring(0, m.index);
                     const rightPart = processedCode.substring(m.index + m.length);

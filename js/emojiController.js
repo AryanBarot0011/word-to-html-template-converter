@@ -117,6 +117,7 @@ $(document).ready(function() {
 
         const imgConfig = {
             class: $('#emojiImgClassInput').val() ? $('#emojiImgClassInput').val().trim() : '',
+            alt: $('#emojiImgAltInput').val() ? $('#emojiImgAltInput').val().trim() : '',
             width: $('#emojiImgWidthInput').val() ? $('#emojiImgWidthInput').val().trim() : '',
             height: $('#emojiImgHeightInput').val() ? $('#emojiImgHeightInput').val().trim() : '',
             attrs: $('#emojiImgAttrsInput').val() ? $('#emojiImgAttrsInput').val().trim() : ''
